@@ -84,12 +84,12 @@ export class ModelNetwork {
   constructor() {
     this.small = byId('network-canvas'); this.large = byId('network-canvas-large');
     this.dialog = byId('network-dialog'); this.frame = 0; this.playing = false;
-    this.hasActivity = false; this.needsDraw = true; this.lastPaint = 0;
+    this.hasActivity = false; this.invalidate(); this.lastPaint = 0;
     this.yaw = -.22; this.pitch = .10; this.focus = 'all'; this.cellType = -1;
     this.data = null; this.loadId = 0; this.projected = new Map();
     this.eyeCanvas = [document.createElement('canvas'), document.createElement('canvas')];
     this.eyeCanvas.forEach(c => { c.width = c.height = 32; });
-    this.bind(); requestAnimationFrame(now => this.loop(now));
+    this.bind();
   }
 
   applyTopology(topology) {
@@ -122,7 +122,7 @@ export class ModelNetwork {
     byId('network-expand').disabled = true;
     this.showInspection('悬停查看类型 · 拖动调整视角');
     this.updateReadouts();
-    this.needsDraw = true;
+    this.invalidate();
   }
 
   async loadScene(scene, taskName, signal) {
@@ -141,11 +141,13 @@ export class ModelNetwork {
     const ctx = canvas.getContext('2d', {willReadFrequently:true}); ctx.drawImage(image, 0, 0);
     this.applyTopology(layout);
     this.data = { pixels: ctx.getImageData(0,0,image.width,image.height).data };
-    this.scene = scene; this.taskName = taskName; this.frame = 0; this.hasActivity = false;
+    // Release decoding surfaces once the presentation pixels have been copied.
+    canvas.width=canvas.height=1; image.src='';
+    this.scene = scene; this.taskName = taskName; this.frame = 0; this.hasActivity = true;
     this.stride = layout.imageWidth * layout.rowsPerFrame; this.rgbCache = new Map();
     this.eyeSize = scene.sensorOffsets.eyeSize;
     this.eyeCanvas.forEach(c => { c.width = c.height = this.eyeSize; });
-    this.updateEyes(); this.updateReadouts(); this.needsDraw = true;
+    this.updateEyes(); this.updateReadouts(); this.invalidate();
     byId('network-load').classList.add('hidden'); byId('network-expand').disabled = false;
     byId('network-validation').textContent = '显示颜色与同一回放帧同步；不读取或运行模型参数。';
   }
@@ -156,7 +158,7 @@ export class ModelNetwork {
     this.nodes.forEach((node, index) => this.layerNodes.get(node.stage)?.push(index));
     this.residualEdgeCache = this.topology.edges.map(([source,target],index)=>({source,target,index}));
     this.visionCount = this.topology.sampledNodesPerEye * 2;
-    this.needsDraw = true;
+    this.invalidate();
   }
 
   pixelOffset(index) { return (this.frame * this.stride + index) * 4; }
@@ -176,15 +178,16 @@ export class ModelNetwork {
       button.title = `${info.name} · 每眼 ${info.count} 个节点`;
       button.addEventListener('click', () => {
         this.cellType = this.cellType === type ? -1 : type; this.focus = this.cellType >= 0 ? 'vision' : 'all';
-        this.updateFocusButtons(); this.updateReadouts(); this.needsDraw = true;
+        this.updateFocusButtons(); this.updateReadouts(); this.invalidate();
       }); container.append(button);
     });
   }
 
   setPlaybackActive(value) {
+    if(this.playing===Boolean(value))return;
     this.playing = Boolean(value);
     if (this.playing && this.data) this.hasActivity = true;
-    this.updateReadouts(); this.needsDraw = true;
+    this.updateReadouts(); this.invalidate();
   }
 
   setFrame(frame) {
@@ -192,7 +195,7 @@ export class ModelNetwork {
     const f = clamp(Math.round(frame), 0, this.scene.frames - 1);
     if (f === this.frame && !this.needsDraw) return;
     this.frame = f; if (f > 0 || this.playing) this.hasActivity = true;
-    this.updateEyes(); this.updateReadouts(); this.needsDraw = true;
+    this.updateEyes(); this.updateReadouts(); this.invalidate();
   }
 
   value(node) { return node.stage === 'actions' ? this.scene.actions[this.frame][node.unit] : 0; }
@@ -218,7 +221,7 @@ export class ModelNetwork {
   }
 
   updateReadouts() {
-    const status = !this.data ? '等待展示数据' : !this.hasActivity ? `${this.taskName} · 点击播放，点亮模型活动` : `${this.taskName} · ${this.playing ? '● 同步播放' : '○ 当前帧已冻结'} · ${String(this.frame+1).padStart(3,'0')} / ${this.scene.frames}`;
+    const status = !this.data ? '等待展示数据' : `${this.taskName} · ${this.playing ? '同步播放' : this.frame===0?'就绪':'已暂停'} · ${this.frame+1} / ${this.scene.frames} 帧`;
     byId('network-sync').textContent = status; byId('network-dialog-status').textContent = status;
     for(let a=0;a<3;a++) {
       const v = this.data && this.hasActivity ? this.scene.actions[this.frame][a] : 0;
@@ -537,43 +540,51 @@ export class ModelNetwork {
       if (event.key === 'Home') { this.yaw = -.22; this.pitch = .10; }
       else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') this.yaw = clamp(this.yaw + (event.key === 'ArrowLeft' ? -1 : 1) * .06 * step, -.8, .8);
       else this.pitch = clamp(this.pitch + (event.key === 'ArrowUp' ? -1 : 1) * .04 * step, -.4, .4);
-      this.hover = null; this.drag = null; this.updateReadouts(); this.needsDraw = true;
+      this.hover = null; this.drag = null; this.updateReadouts(); this.invalidate();
     });
     canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' || e.button !== 0) return; canvas.focus({preventScroll:true}); canvas.setPointerCapture(e.pointerId); this.drag = { canvas, id: e.pointerId, x: e.clientX, y: e.clientY }; });
     canvas.addEventListener('pointermove', e => {
       if (this.drag?.canvas === canvas && this.drag.id === e.pointerId) {
         this.yaw = clamp(this.yaw + (e.clientX - this.drag.x) * .006, -.8, .8); this.pitch = clamp(this.pitch + (e.clientY - this.drag.y) * .004, -.4, .4);
-        this.drag.x = e.clientX; this.drag.y = e.clientY; this.needsDraw = true; return;
+        this.drag.x = e.clientX; this.drag.y = e.clientY; this.invalidate(); return;
       }
       if (!this.data) return;
       const p = this.projected.get(canvas); if (!p) return;
       const rect = canvas.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top;
       let nearest = -1, distance = 100;
       for (let i = 0; i < this.nodes.length; i++) { const d = (p[i * 2] - x) ** 2 + (p[i * 2 + 1] - y) ** 2; if (d < distance) { nearest = i; distance = d; } }
-      this.hover = nearest < 0 ? null : { canvas, index: nearest }; this.needsDraw = true;
+      this.hover = nearest < 0 ? null : { canvas, index: nearest }; this.invalidate();
       if (nearest >= 0) this.showInspection(this.inspect(this.nodes[nearest]));
       else this.updateReadouts();
     });
     const release = () => { this.drag = null; };
     canvas.addEventListener('pointerup', release); canvas.addEventListener('pointercancel', release); canvas.addEventListener('lostpointercapture', release);
-    canvas.addEventListener('pointerleave', () => { this.hover = null; this.updateReadouts(); this.needsDraw = true; });
+    canvas.addEventListener('pointerleave', () => { this.hover = null; this.updateReadouts(); this.invalidate(); });
   }
 
   bind() {
     this.bindCanvas(this.small); this.bindCanvas(this.large);
-    byId('network-expand').addEventListener('click', () => { this.dialog.showModal(); this.needsDraw = true; });
+    byId('network-expand').addEventListener('click', () => { this.dialog.showModal(); this.invalidate(); });
     byId('network-close').addEventListener('click', () => this.dialog.close());
-    window.addEventListener('resize', () => { this.needsDraw = true; });
-    this.resizeObserver = new ResizeObserver(() => { this.needsDraw = true; });
+    document.querySelectorAll('[data-network-reset]').forEach(button=>button.addEventListener('click',()=>{this.yaw=-.22;this.pitch=.10;this.hover=null;this.drag=null;this.updateReadouts();this.invalidate();}));
+    this.dialog.addEventListener('close',()=>{this.hover=null;this.drag=null;this.updateReadouts();this.invalidate();});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFrame(this.drawRequest);this.drawRequest=null;}else this.invalidate();});
+    window.addEventListener('resize', () => { this.invalidate(); });
+    this.resizeObserver = new ResizeObserver(() => { this.invalidate(); });
     this.resizeObserver.observe(this.small.parentElement);
     this.resizeObserver.observe(this.large.parentElement);
   }
 
+  invalidate() {
+    this.needsDraw=true;
+    if(this.drawRequest==null&&document.visibilityState==='visible')this.drawRequest=requestAnimationFrame(now=>this.loop(now));
+  }
+
   loop(now) {
-    if (document.visibilityState === 'visible' && this.topology && this.needsDraw && now - this.lastPaint >= 40) {
-      this.draw(this.small); if (this.dialog.open) this.draw(this.large);
-      this.lastPaint = now; this.needsDraw = false;
-    }
-    requestAnimationFrame(next => this.loop(next));
+    this.drawRequest=null;
+    if(document.visibilityState!=='visible'||!this.topology||!this.needsDraw)return;
+    if(now-this.lastPaint<40){this.drawRequest=requestAnimationFrame(next=>this.loop(next));return;}
+    this.draw(this.small); if(this.dialog.open)this.draw(this.large);
+    this.lastPaint=now;this.needsDraw=false;
   }
 }
