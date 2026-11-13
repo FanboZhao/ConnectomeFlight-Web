@@ -10,8 +10,8 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="ConnectomeFlight · 感知与飞行观测台">
   <meta property="og:description" content="对照三个飞行场景，同步观察双眼与触角输入、模型活动、双镜头和飞行轨迹。">
-  <meta property="og:url" content="https://zhaofanbo.com/SenseFlight-Web/">
-  <meta property="og:image" content="https://zhaofanbo.com/SenseFlight-Web/og-preview.jpg">
+  <meta property="og:url" content="https://zhaofanbo.com/ConnectomeFlight-Web/">
+  <meta property="og:image" content="https://zhaofanbo.com/ConnectomeFlight-Web/og-preview.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="ConnectomeFlight 观测台：双镜头、双眼与触角输入、飞行轨迹与模型活动">
@@ -19,8 +19,8 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="ConnectomeFlight · 感知与飞行观测台">
   <meta name="twitter:description" content="对照三个飞行场景，同步观察双眼与触角输入、模型活动、双镜头和飞行轨迹。">
-  <meta name="twitter:image" content="https://zhaofanbo.com/SenseFlight-Web/og-preview.jpg">
-  <link rel="canonical" href="https://zhaofanbo.com/SenseFlight-Web/">
+  <meta name="twitter:image" content="https://zhaofanbo.com/ConnectomeFlight-Web/og-preview.jpg">
+  <link rel="canonical" href="https://zhaofanbo.com/ConnectomeFlight-Web/">
   <title>ConnectomeFlight · 感知与飞行观测台</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=final-polish-20261101">
   <link rel="stylesheet" href="./style.css?v=final-polish-20261101">
@@ -36,8 +36,8 @@
   <header class="topbar">
     <a class="brand" href="./" aria-label="ConnectomeFlight 观测台首页"><span class="brand-mark" aria-hidden="true"><img src="./favicon.svg?v=final-polish-20261101" alt=""></span><strong>ConnectomeFlight</strong><span class="brand-subtitle">感知 · 神经活动 · 飞行</span></a>
     <div class="difficulty-list task-switcher" role="group" aria-label="选择实验任务">
-          <button class="difficulty active" type="button" data-difficulty="D3" aria-pressed="true" title="纯视觉任务：可见球形目标随机树林；T4/T5 读出，115 参数"><strong>纯视觉任务</strong></button>
-          <button class="difficulty" type="button" data-difficulty="D4" aria-pressed="false" title="多模态任务：视觉与嗅觉，四目标气味源导航"><strong>多模态任务</strong></button>
+          <button class="difficulty active" type="button" data-difficulty="D3" aria-pressed="true" title="视觉导航：可见球形目标随机树林；T4/T5 读出，115 参数"><strong>视觉导航</strong></button>
+          <button class="difficulty" type="button" data-difficulty="D4" aria-pressed="false" title="视嗅导航：视觉与嗅觉，四目标气味源导航"><strong>视嗅导航</strong></button>
         </div>
     <div class="top-status" data-state="loading"><span class="live-dot" aria-hidden="true"></span><span id="playback-status">加载中</span><span class="model-tag">ConnectomeFlight-V · T4/T5 · 115 参数</span></div>
     <button id="share-open" aria-label="分享当前场景" title="分享当前场景" class="quiet-button" type="button" aria-haspopup="dialog" disabled><svg class="ui-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V1m-3 3 3-3 3 3M3 7H2v7h12V7h-1"></path></svg><span>分享场景</span></button>
@@ -105,7 +105,7 @@
       <section class="trajectory-card" aria-labelledby="trajectory-title">
         <div class="right-head"><h2 id="trajectory-title"><svg class="ui-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="12" r="1.5"></circle><path d="M4.5 12h3a3 3 0 0 0 0-6H6a2 2 0 0 1 0-4h6m-2-1 2 1-2 2"></path></svg>飞行轨迹</h2><span id="trajectory-view">俯视 · X↑</span></div>
 
-        <p id="task-summary" class="task-summary" role="status">正在加载纯视觉任务…</p>
+        <p id="task-summary" class="task-summary" role="status">正在加载视觉导航…</p>
         <div class="trajectory-map"><canvas id="trajectory" role="img" aria-label="俯视轨迹：实线为已飞路径，虚线为未播放路径，箭头为当前果蝇，圆形为障碍"></canvas></div>
         <div class="map-legend"><span><i class="legend-line"></i>已飞</span><span><i class="legend-pending"></i>未播放</span><span><i class="legend-fly"></i>果蝇</span><span><i class="legend-start"></i>起点</span><span><i class="legend-obstacle"></i>障碍</span><span><i class="legend-target"></i>目标</span></div>
         <div class="position-readout"><div><small>位置 · cm</small><strong id="position-xy">0.00, 0.00</strong></div><div><small>航程</small><strong id="distance">0.00 cm</strong></div></div>
@@ -128,8 +128,8 @@
   <dialog id="info-dialog" class="info-dialog" aria-labelledby="info-title">
     <div class="dialog-head"><h2 id="info-title">来源与显示说明</h2><button id="info-close" type="button" aria-label="关闭来源与说明">×</button></div>
     <div class="info-content">
-      <section class="info-section"><h3>从感知到飞行</h3><p>ConnectomeFlight 将感官输入、模型活动和飞行结果放在同一时间轴上。切换纯视觉与多模态任务，对照观察双眼、触角、两路镜头、轨迹与动作。</p></section>
-      <section class="info-section"><h3>当前演示</h3><p id="task-model-note">纯视觉任务使用 115 参数的 ConnectomeFlight-V（T4/T5，update800）。双眼特征经固定压缩、标量读出和 50 ms EMA 记忆产生飞行动作，在树林中绕行抵达球形目标。</p><p>画面来自选定成功案例，不代表整体性能或独立泛化测试。</p></section>
+      <section class="info-section"><h3>从感知到飞行</h3><p>ConnectomeFlight 将感官输入、模型活动和飞行结果放在同一时间轴上。切换视觉导航与视嗅导航，对照观察双眼、触角、两路镜头、轨迹与动作。</p></section>
+      <section class="info-section"><h3>当前演示</h3><p id="task-model-note">视觉导航使用 115 参数的 ConnectomeFlight-V（T4/T5，update800）。双眼特征经固定压缩、标量读出和 50 ms EMA 记忆产生飞行动作，在树林中绕行抵达球形目标。</p><p>画面来自选定成功案例，不代表整体性能或独立泛化测试。</p></section>
       <section class="info-section"><h3>怎样阅读活动图</h3><p>蓝色表示负值，绿色至黄色表示正值。亮点展示量化后的连续模型响应，不是生物脉冲记录；布局用于说明网络结构，不表示完整脑解剖或因果归因。俯视画面中的细线圆环标出果蝇位置。</p><p id="network-population">正在读取展示布局…</p><details id="cell-type-details" class="network-details"><summary>筛选视觉细胞类型</summary><p id="network-sampling"></p><div id="network-cell-types" class="network-cell-types" role="group" aria-label="选择 FlyVis 细胞类型"></div><p id="network-validation"></p></details></section>
       <section class="info-section"><h3>操作提示</h3><div class="shortcut-list"><span><kbd>空格</kbd> 播放 / 暂停</span><span><kbd>←</kbd><kbd>→</kbd> 逐帧查看</span><span><kbd>R</kbd> 从头播放</span><span><kbd>L</kbd> 循环播放</span><span>模型图获得焦点后，方向键旋转，<kbd>Home</kbd> 恢复视角</span></div><p>每个任务各有三个场景，切换后双镜头、轨迹和活动同时更新。拖动时间轴可定位回放，分享场景可保留当前帧；手机上的模型图支持横向滑动。所有视图同帧更新，气味场底色用于辅助观察。</p><p>时间读数为仿真时间；1× 回放以每秒 20 帧展示，每帧对应 5 ms 仿真记录。打开说明或切换到其他标签页时，回放会自动暂停。</p></section>
       <section class="info-section"><h3>来源与致谢</h3><p>基于上游 <strong>FlyVis</strong> 视觉模型与 <strong>FlyBody</strong> 果蝇身体模型。界面交互参考 <a href="https://github.com/Lulzx/fly-brain" target="_blank" rel="noopener noreferrer">fly-brain</a> 和 <a href="https://huggingface.co/spaces/Xenova/fruit-fly-simulation" target="_blank" rel="noopener noreferrer">Neural Canvas</a>。</p></section>

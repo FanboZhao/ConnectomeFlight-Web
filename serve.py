@@ -60,5 +60,5 @@ class Handler(SimpleHTTPRequestHandler):
         pass
 
 if __name__ == '__main__':
-    print('SenseFlight preview: http://127.0.0.1:8091/', flush=True)
+    print('ConnectomeFlight preview: http://127.0.0.1:8091/', flush=True)
     ThreadingHTTPServer(('127.0.0.1', 8091), Handler).serve_forever()

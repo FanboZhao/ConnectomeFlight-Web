@@ -7,13 +7,13 @@
 <p align="center"><strong>A synchronized observatory for connectome-constrained fly navigation.</strong></p>
 
 <p align="center">
-  <a href="https://zhaofanbo.com/SenseFlight-Web/"><img alt="Live observatory" src="https://img.shields.io/badge/live-zhaofanbo.com%2FSenseFlight--Web-2ea44f?style=flat-square"></a>
+  <a href="https://zhaofanbo.com/ConnectomeFlight-Web/"><img alt="Live observatory" src="https://img.shields.io/badge/live-zhaofanbo.com%2FConnectomeFlight--Web-2ea44f?style=flat-square"></a>
   <img alt="Models" src="https://img.shields.io/badge/models-115%20%7C%202454-4c8eda?style=flat-square">
-  <a href="https://github.com/FanboZhao/SenseFlight-Web/actions/workflows/deploy-pages.yml"><img alt="Deploy status" src="https://github.com/FanboZhao/SenseFlight-Web/actions/workflows/deploy-pages.yml/badge.svg"></a>
+  <a href="https://github.com/FanboZhao/ConnectomeFlight-Web/actions/workflows/deploy-pages.yml"><img alt="Deploy status" src="https://github.com/FanboZhao/ConnectomeFlight-Web/actions/workflows/deploy-pages.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
 </p>
 
-<p align="center"><a href="https://zhaofanbo.com/SenseFlight-Web/"><strong>Open the live observatory →</strong></a></p>
+<p align="center"><a href="https://zhaofanbo.com/ConnectomeFlight-Web/"><strong>Open the live observatory →</strong></a></p>
 
 ConnectomeFlight is a browser-based observatory for two embodied navigation policies: a **pure visual** fly and a **visuo-olfactory** fly. Each task offers three selectable flight replays. The page keeps both cameras, the raw eye and antennal inputs, the trajectory, the model's internal activity and its actions on the same frame.
 
