@@ -23,8 +23,8 @@ jobs:
         run: |
           import json, pathlib, struct, subprocess
           expected = {
-              '.github/workflows/deploy-pages.yml', '.gitignore', 'AGENTS.md',
-              'README.md', 'serve.py', 'ATTRIBUTION.md', 'LICENSES/fly-brain-MIT.txt', 'docs/NAMING.md',
+              '.github/workflows/deploy-pages.yml', '.gitignore', 'LICENSE',
+              'README.md', 'serve.py', 'ATTRIBUTION.md', 'LICENSES/fly-brain-MIT.txt', 'assets/preview.jpg',
               'dist/index.html', 'dist/v3.html', 'dist/app.js', 'dist/style.css',
               'dist/model-network.css', 'dist/visual-polish.css', 'dist/demo.css',
               'dist/favicon.svg', 'dist/media/d3.mp4', 'dist/media/d4.mp4',
@@ -46,6 +46,8 @@ jobs:
                   assert p.read_bytes()[4:8] == b'ftyp', name
               elif p.suffix == '.png':
                   assert p.read_bytes()[:8] == b'\x89PNG\r\n\x1a\n', name
+              elif p.suffix in ('.jpg', '.jpeg'):
+                  assert p.read_bytes()[:2] == b'\xff\xd8', name
               else:
                   content = p.read_text()
                   for forbidden in ['weights.f32','policy.f32','vision.f32','metadata.json',
@@ -55,7 +57,7 @@ jobs:
           common = {'format','difficulty','frames','stepDtSeconds','hexUV','positionsXYZCm','distanceCm',
                     'actions','topdownMarkerXY','obstaclePositionsXYCm','obstacleRadiiCm','sourcePositionXYCm','sensorOffsets','networkLayout'}
           optional = {'goalPositionsXYCm','activeGoal','odorConcentrations','odorFeatures'}
-          scene_frames = {'d3':197,'d3-2':194,'d3-3':213,'d4':404,'d4-2':412,'d4-3':399}
+          scene_frames = {'d3':197,'d3-2':194,'d3-3':213,'d4':417,'d4-2':420,'d4-3':399}
           geometries = {'d3':set(),'d4':set()}
           layouts = {}
           for name, frames in scene_frames.items():

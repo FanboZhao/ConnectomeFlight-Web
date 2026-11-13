@@ -1,17 +1,99 @@
-# ConnectomeFlight
+<div align="center">
+  <img src="assets/preview.jpg" alt="ConnectomeFlight observatory showing dual flight cameras, binocular and olfactory inputs, trajectory and model activity" width="100%">
+</div>
 
-在线展示：[zhaofanbo.com/SenseFlight-Web](https://zhaofanbo.com/SenseFlight-Web/)
+<h1 align="center">ConnectomeFlight</h1>
 
-纯视觉与多模态飞行展示，每个任务提供三个可选场景。点击飞行画面上方的「场景 01 / 02 / 03」，可比较不同的树障碍、目标位置与飞行路线；双镜头、感官输入、轨迹和模型活动同步切换。支持任务与场景链接、模型图拖动与键盘旋转、细胞筛选与画面放大。桌面、平板与手机采用适配布局。
+<p align="center"><strong>A synchronized observatory for connectome-constrained fly navigation.</strong></p>
 
-回放支持逐帧查看、从头播放、循环与倍速。使用「分享场景」可复制从当前帧开始的链接，例如 `?task=D4&scene=2&frame=220`（帧索引从 0 开始）。手机上的模型图可横向滑动；放大视图支持恢复视角。打开说明或切换到其他标签页时自动暂停。加载失败可重试当前场景。
+<p align="center">
+  <a href="https://zhaofanbo.com/SenseFlight-Web/"><img alt="Live observatory" src="https://img.shields.io/badge/live-zhaofanbo.com%2FSenseFlight--Web-2ea44f?style=flat-square"></a>
+  <img alt="Models" src="https://img.shields.io/badge/models-115%20%7C%202454-4c8eda?style=flat-square">
+  <a href="https://github.com/FanboZhao/SenseFlight-Web/actions/workflows/deploy-pages.yml"><img alt="Deploy status" src="https://github.com/FanboZhao/SenseFlight-Web/actions/workflows/deploy-pages.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
+</p>
 
-仓库仅包含网页、画面、显示颜色贴图及经过取舍的回放信息；不提供 checkpoint、模型权重、偏置、完整中间层数值或训练代码。
+<p align="center"><a href="https://zhaofanbo.com/SenseFlight-Web/"><strong>Open the live observatory →</strong></a></p>
 
-本地预览：`python3 serve.py`
+ConnectomeFlight is a browser-based observatory for two embodied navigation policies: a **pure visual** fly and a **visuo-olfactory** fly. Each task offers three selectable flight replays. The page keeps both cameras, the raw eye and antennal inputs, the trajectory, the model's internal activity and its actions on the same frame.
 
-视觉与身体模型来自上游 FlyVis、FlyBody；界面参考 fly-brain 与 Neural Canvas。参见 [来源说明](ATTRIBUTION.md)。
+Everything is a frozen replay. The browser does not run the policy, call a server, or train anything.
 
-当前纯视觉展示使用疏朗球形目标树林 v3 与 ConnectomeFlight-V（T4/T5、115 参数、update800）。三个成功案例分别为上侧、中部与下侧球形目标，回放为 197、194、213 帧。144 维视觉特征经固定压缩后，展示标量读出、50 ms EMA 记忆和动作头；俯视画面用细线小圆环标出果蝇。
+## Highlights
 
-多模态 demo 使用 ConnectomeFlight-VO（Vis115 + 嗅觉残差，2454 参数、update28800）。三个成功案例分别为下侧、上侧与中部气味源，回放为 404、412、399 帧；活动图同步显示视觉基准、嗅觉记忆、残差及相加输出。每个任务的三个场景使用同一模型，方便对照场景差异。链接可使用 `?task=D4&scene=2` 直接打开指定场景。
+- **Two tasks, three scenes each.** Compare different obstacle layouts, goal positions and flight routes under the same model.
+- **Synchronized views.** Follow camera, top-down camera, eyes, T4/T5 activity, odor field, trajectory and action readouts share one timeline.
+- **Real model activity.** Frozen FlyVis networks and policy units are sampled on their true hexagonal coordinates; hover for values and drag to rotate.
+- **Built for inspection.** Frame stepping, speed control, looping, deep links to a scene and frame, model-graph zoom, and keyboard navigation.
+- **Responsive.** Desktop, tablet and mobile layouts, with 44 px primary touch targets.
+
+## Scenes
+
+| Task | Scene | Geometry | Frames |
+| --- | --- | --- | --- |
+| D3 · visual | 01 | Upper spherical goal, five tree obstacles | 197 |
+| D3 · visual | 02 | Central spherical goal, four tree obstacles | 194 |
+| D3 · visual | 03 | Lower spherical goal, five tree obstacles | 213 |
+| D4 · visuo-olfactory | 01 | Lower odor source | 417 |
+| D4 · visuo-olfactory | 02 | Upper odor source, mirrored tree layout | 420 |
+| D4 · visuo-olfactory | 03 | Central odor source, different tree layout | 399 |
+
+Use `?task=D4&scene=2` to open a scene directly, and `&frame=220` to start at a frame.
+
+## Models
+
+| Task | Display model | Trainable parameters | Sensory path | Readout |
+| --- | --- | --- | --- | --- |
+| D3 | ConnectomeFlight-V | 115 | 32 × 32 binocular RGB | T4/T5 → 144 → fixed 104 compression → 50 ms EMA → actions |
+| D4 | ConnectomeFlight-VO | 2454 | 64 × 64 binocular RGB + two antennal odor channels | Vis115 visual base + 32-d odor RNN + residual head |
+
+Both models are exported from the **ConnectomeFlight** research repository. This repository contains only presentation data: the web interface, rendered frames, quantized appearance textures, display geometry and rounded replay readouts. Model weights, biases and precise intermediate arrays are not part of this repository.
+
+## Local preview
+
+No build step and no dependencies beyond Python 3:
+
+```sh
+python3 serve.py
+# → http://127.0.0.1:8091/
+```
+
+The server supports HTTP range requests so the MP4s seek correctly.
+
+## Repository layout
+
+```text
+dist/                 the site: HTML, CSS, JS, six replays and display JSON
+assets/preview.jpg    repository preview image
+LICENSES/             retained third-party notices
+serve.py              local preview server
+.github/workflows/    deployment and presentation-boundary checks
+```
+
+Each scene ships as one H.264 video (two cameras side by side), one RGBA appearance texture for the interactive model graph, and one display JSON with the rounded trajectory, actions, markers and layout. The deployment workflow validates the file boundary, JSON schema, frame counts and PNG bounds before publishing.
+
+## Using the page
+
+- Play/pause with the transport or <kbd>Space</kbd>; step with <kbd>←</kbd> / <kbd>→</kbd>.
+- Switch task and scene with the top controls; arrow keys and <kbd>Home</kbd> / <kbd>End</kbd> move through scenes.
+- Drag the model graph to rotate it; use the expand button for a full view.
+- Share a scene or a specific frame from **分享场景**.
+- Click any camera to enlarge it; <kbd>Esc</kbd> closes dialogs.
+
+## Data policy
+
+This is a presentation repository. It intentionally excludes checkpoints, learned parameters, normalization statistics, training code, experiment logs and precise hidden-state arrays. Appearance textures are quantized for display; they are not a numerical record of the model. The private research archive keeps the full numerical evidence.
+
+## Attribution
+
+Visual model and connectome: **FlyVis** (Lappalainen et al., *Nature* 634, 1132–1140, 2024). Body and low-level controller: **FlyBody** (Vaxenburg et al., *Nature* 643, 1312–1320, 2025). Interface references: [fly-brain](https://github.com/Lulzx/fly-brain) and [Neural Canvas](https://huggingface.co/spaces/Xenova/fruit-fly-simulation).
+
+Activity images show continuous model responses, not biological spikes or a complete anatomical brain. Selected successful replays do not establish aggregate performance or independent generalization. See [ATTRIBUTION.md](ATTRIBUTION.md) for details and retained notices.
+
+## License
+
+The website code and presentation media in this repository are released under the [MIT License](LICENSE). Upstream FlyVis, FlyBody and third-party components retain their original licenses; see [LICENSES/](LICENSES/) and [ATTRIBUTION.md](ATTRIBUTION.md).
+
+## 中文简介
+
+ConnectomeFlight 是数字果蝇视觉与视嗅导航研究的展示站点。纯视觉与视嗅两个任务各提供三个可选回放，双镜头、双眼/触角输入、飞行轨迹与模型活动同帧同步。页面只播放冻结回放，不运行策略推理。本仓库仅包含网页、渲染画面、量化显示贴图与取整后的回放数据，不包含模型权重或训练代码。

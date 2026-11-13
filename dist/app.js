@@ -8,13 +8,13 @@ const TASKS = {
     {detail:'中部目标', summary:'中部球形目标 · 4 处树障碍'},
     {detail:'下侧目标', summary:'下侧球形目标 · 5 处树障碍'},
   ] },
-  D4: { name: '多模态任务', model: 'ConnectomeFlight-VO · Vis115 · 2454 参数', summary: 'Vis115 + 嗅觉残差 · 选定成功案例', scenes: [
+  D4: { name: '多模态任务', model: 'ConnectomeFlight-VO · Vis115 · 2454 参数', summary: 'Vis115 + 嗅觉残差 · update25600 · 选定成功案例', scenes: [
     {detail:'下侧气味源', summary:'下侧气味源 · 相同外观的 4 个目标'},
     {detail:'上侧气味源', summary:'上侧气味源 · 镜像树障碍布局'},
     {detail:'中部气味源', summary:'中部气味源 · 不同树障碍布局'},
   ] },
 };
-const ASSET_VERSION = 'three-scenes-20261029';
+const ASSET_VERSION = 'three-scenes-20261113';
 const CROPS = {follow:[0,0,1280,720],topdown:[1280,0,1280,720]};
 const modelNetwork = new ModelNetwork();
 const odorField = new OdorFieldLayer();
@@ -178,7 +178,7 @@ async function loadScene(key, variant, initialFrame=0) {
   document.body.classList.toggle('multimodal',key==='D4');byId('odor-card').hidden=key!=='D4';
   document.querySelector('.model-tag').textContent=task().model;
   byId('task-model-note').textContent=key==='D4'
-    ? '多模态任务使用当前选定的 ConnectomeFlight-VO：2454 参数、update28800。完整 Vis115 分支经固定压缩和 50 ms EMA 产生视觉基准；触角气味经 32 维 RNN，与视觉记忆融合形成残差。两路相加后经 tanh 控制飞行。这里提供三个不同场景的成功案例，可对照气味源和障碍布局变化。'
+    ? '多模态任务使用 ConnectomeFlight 冻结多模态队列的默认代表模型：ConnectomeFlight-VO，2454 参数、seed65251/update25600。完整 Vis115 分支经固定压缩和 50 ms EMA 产生视觉基准；触角气味经 32 维 RNN，与视觉记忆融合形成残差。两路相加后经 tanh 控制飞行。这里提供三个不同场景的成功案例，可对照气味源和障碍布局变化。'
     : '纯视觉任务使用 115 参数的 ConnectomeFlight-V（T4/T5，update800）。双眼 144 维特征经固定归一化与 104 维压缩，再经两个标量读出层、50 ms EMA 记忆和动作头，在疏朗树林 v3 中绕行抵达直径 1.8 cm 的球形目标。';
   document.querySelector('.column-heading h2').lastChild.textContent=key==='D4'?'视嗅输入':'视觉输入';
   document.querySelector('.column-heading > span').textContent=key==='D4'?'双眼 + 触角':'左眼 / 右眼';
