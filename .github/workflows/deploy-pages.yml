@@ -27,7 +27,7 @@ jobs:
               'README.md', 'serve.py', 'ATTRIBUTION.md', 'LICENSES/fly-brain-MIT.txt', 'assets/preview.jpg',
               'dist/index.html', 'dist/v3.html', 'dist/app.js', 'dist/style.css',
               'dist/model-network.css', 'dist/visual-polish.css', 'dist/demo.css',
-              'dist/favicon.svg', 'dist/media/d3.mp4', 'dist/media/d4.mp4',
+              'dist/favicon.svg', 'dist/og-preview.jpg', 'dist/media/d3.mp4', 'dist/media/d4.mp4',
               'dist/model-network.js', 'dist/odor-field.js', 'dist/media/odor-field.png',
               'dist/media/d3-display.json', 'dist/media/d4-display.json',
               'dist/media/d3-appearance.png', 'dist/media/d4-appearance.png',
