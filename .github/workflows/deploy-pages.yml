@@ -57,7 +57,7 @@ jobs:
           common = {'format','difficulty','frames','stepDtSeconds','hexUV','positionsXYZCm','distanceCm',
                     'actions','topdownMarkerXY','obstaclePositionsXYCm','obstacleRadiiCm','sourcePositionXYCm','sensorOffsets','networkLayout'}
           optional = {'goalPositionsXYCm','activeGoal','odorConcentrations','odorFeatures'}
-          scene_frames = {'d3':197,'d3-2':194,'d3-3':213,'d4':404,'d4-2':412,'d4-3':399}
+          scene_frames = {'d3':197,'d3-2':194,'d3-3':213,'d4':417,'d4-2':420,'d4-3':399}
           geometries = {'d3':set(),'d4':set()}
           layouts = {}
           for name, frames in scene_frames.items():

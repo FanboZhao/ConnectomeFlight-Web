@@ -34,8 +34,8 @@ Everything is a frozen replay. The browser does not run the policy, call a serve
 | D3 · visual | 01 | Upper spherical goal, five tree obstacles | 197 |
 | D3 · visual | 02 | Central spherical goal, four tree obstacles | 194 |
 | D3 · visual | 03 | Lower spherical goal, five tree obstacles | 213 |
-| D4 · visuo-olfactory | 01 | Lower odor source | 404 |
-| D4 · visuo-olfactory | 02 | Upper odor source, mirrored tree layout | 412 |
+| D4 · visuo-olfactory | 01 | Lower odor source | 417 |
+| D4 · visuo-olfactory | 02 | Upper odor source, mirrored tree layout | 420 |
 | D4 · visuo-olfactory | 03 | Central odor source, different tree layout | 399 |
 
 Use `?task=D4&scene=2` to open a scene directly, and `&frame=220` to start at a frame.
