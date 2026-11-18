@@ -163,6 +163,15 @@ def main():
         wait_ready(page);assert not errors
         assert 'task=D3' in page.url
         context.close();checks.append('rapid scene cancellation')
+
+        context,page,errors=fault('pause-during-video-buffering',init=CANVAS_LIMIT)
+        wait_ready(page);page.click('#play-button')
+        page.evaluate('()=>document.querySelector("video").dispatchEvent(new Event("waiting"))')
+        page.click('#play-button')
+        assert page.locator('video').evaluate('(video)=>video.paused')
+        assert page.locator('#playback-status').inner_text() in ['就绪','已暂停']
+        assert not errors
+        context.close();checks.append('pause remains effective during video buffering')
         browser.close()
     server.shutdown()
     print(json.dumps({'status':'PASS','checks':checks},ensure_ascii=False,indent=2))

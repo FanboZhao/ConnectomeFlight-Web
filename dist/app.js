@@ -265,8 +265,8 @@ async function seek(frame,resume=false) {
 
 async function togglePlay() {
   if(!state.ready) return;
-  if(state.buffering) {state.resumeAfterBuffer=!state.resumeAfterBuffer;updateControls();return;}
-  if(!video.paused) {video.pause();updateControls();return;}
+  if(state.buffering && state.pendingFrame!==null) {state.resumeAfterBuffer=!state.resumeAfterBuffer;updateControls();return;}
+  if(!video.paused) {state.resumeAfterBuffer=false;state.buffering=false;video.pause();updateControls();return;}
   if(state.frame>=lastFrame()) await seek(0);
   try{await video.play();updateControls();}catch{byId('network-sync').textContent='请再次点击播放';}
 }
