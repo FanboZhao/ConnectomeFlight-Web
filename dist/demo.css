@@ -2,3 +2,13 @@
 #replay-source { position:fixed; left:0; bottom:0; width:1px; height:1px; opacity:0; pointer-events:none; }
 .camera-card > canvas { display:block; width:100%; height:100%; object-fit:contain; background:#080f15; }
 .camera-dialog > canvas { display:block; width:100%; height:auto; min-height:0; max-height:calc(100dvh - 180px); object-fit:contain; background:#080f15; }
+
+.startup-retry { color: #a9dfc7; font-size: 12px; margin-top: 12px; }
+.startup-retry[hidden] { display: none; }
+
+@media (max-width: 759px) {
+  .transport .quality-control { grid-column: 6; grid-row: 2; }
+  .transport .timeline-control { grid-column: 1 / 6; min-width: 0; }
+  .transport .timeline-meta > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .transport .timeline-meta > span:last-child { flex-shrink: 0; }
+}

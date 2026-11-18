@@ -1,5 +1,6 @@
-import { ModelNetwork } from './model-network.js?v=final-polish-20261101';
-import { OdorFieldLayer } from './odor-field.js?v=final-polish-20261101';
+import { fetchResource, abortable } from './resource.js?v=loading-20261118';
+import { ModelNetwork } from './model-network.js?v=loading-20261118';
+import { OdorFieldLayer } from './odor-field.js?v=loading-20261118';
 const byId = id => document.getElementById(id);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const TASKS = {
@@ -14,7 +15,7 @@ const TASKS = {
     {detail:'中部气味源', summary:'中部气味源 · 不同树障碍布局'},
   ] },
 };
-const ASSET_VERSION = 'three-scenes-20261113';
+const ASSET_VERSION = 'loading-20261118';
 const CROPS = {follow:[0,0,1280,720],topdown:[1280,0,1280,720]};
 const modelNetwork = new ModelNetwork();
 const odorField = new OdorFieldLayer();
@@ -38,7 +39,8 @@ function paint(id, crop, smooth = true) {
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   const ctx = canvas.getContext('2d', { alpha: false });
   ctx.imageSmoothingEnabled = smooth;
-  ctx.drawImage(video, x,y,w,h, 0,0,w,h);
+  const scale=video.videoWidth/2560;
+  ctx.drawImage(video, x*scale,y*scale,w*scale,h*scale, 0,0,w,h);
   if (crop === CROPS.topdown) drawTopdownMarker(canvas, ctx);
 }
 
@@ -55,7 +57,9 @@ function drawTopdownMarker(canvas, ctx) {
 }
 function render(frame = Math.floor(video.currentTime * 20 + .001)) {
   if (!state.ready || video.readyState < 2 || video.seeking) return;
-  state.frame = clamp(frame, 0, lastFrame());
+  frame=clamp(frame,0,lastFrame());
+  if (!modelNetwork.hasFrame(frame)) { seek(frame,!video.paused); return; }
+  state.frame = frame;
   state.pendingFrame = null;
   paint('camera-image', CROPS.follow); paint('topdown-image', CROPS.topdown);
   modelNetwork.setFrame(state.frame);
@@ -78,13 +82,13 @@ function render(frame = Math.floor(video.currentTime * 20 + .001)) {
   updateControls();
 }
 function updateControls() {
-  const playing = state.ready && !video.paused && !video.ended;
+  const playing = state.ready && ((!video.paused && !video.ended) || (state.buffering && state.resumeAfterBuffer));
   const ended = state.ready && state.frame >= lastFrame() && !playing;
   const label = playing ? '暂停' : ended ? '重新播放' : '播放';
-  const status = state.failed ? '加载失败' : !state.ready ? '加载中' : state.buffering && playing ? '缓冲中' : playing ? '播放中' : ended ? '回放结束' : state.frame===0 ? '就绪' : '已暂停';
+  const status = state.failed ? '加载失败' : !state.ready ? '加载中' : state.buffering ? '缓冲中' : playing ? '播放中' : ended ? '回放结束' : state.frame===0 ? '就绪' : '已暂停';
   byId('playback-status').textContent=status;
-  document.querySelector('.top-status').dataset.state=state.failed?'error':!state.ready?'loading':state.buffering&&playing?'buffering':playing?'playing':'paused';
-  byId('timeline-state').textContent=state.ready?(ended?'已播完 · 可重新播放':playing?(state.buffering?'正在缓冲…':'所有视图同步播放'):'拖动时间轴逐帧查看'):'等待回放';
+  document.querySelector('.top-status').dataset.state=state.failed?'error':!state.ready?'loading':state.buffering?'buffering':playing?'playing':'paused';
+  byId('timeline-state').textContent=state.ready?(state.buffering?'正在载入当前回放分段…':ended?'已播完 · 可重新播放':playing?(state.buffering?'正在缓冲…':'所有视图同步播放'):'拖动时间轴逐帧查看'):'等待回放';
   byId('play-button').setAttribute('aria-label',label);
   document.querySelectorAll('[data-playback-toggle]').forEach(button => {
     button.textContent = playing ? 'Ⅱ 暂停' : ended ? '↻ 重新播放' : '▶ 播放'; button.setAttribute('aria-label',label);
@@ -104,11 +108,12 @@ function setEnabled(enabled) {
   document.querySelectorAll('#play-button, #restart-button, #loop-button, #share-open, #step-back, #step-forward, #timeline, #network-expand, [data-camera-view], [data-network-reset], [data-playback-toggle], [data-playback-timeline]').forEach(el => { el.disabled = !enabled; });
 }
 function showError(error) {
+  videoListenerController?.abort(error);
   state.ready = false; state.failed=true; state.buffering=false; video.pause(); setEnabled(false); modelNetwork.clearScene();
   video.removeAttribute('src');video.load();
   byId('flight-panel').setAttribute('aria-busy','false');
   byId('loading-message').textContent = `未能载入${sceneTitle()}，请重试。`;
-  byId('loading-hint').textContent = navigator.onLine===false?'当前处于离线状态，请连接网络后重试。':error?.name==='TimeoutError'?'加载时间较长，请检查网络或选择其他场景。':'请检查网络连接，也可以先选择其他场景。';
+  byId('loading-hint').textContent = navigator.onLine===false?'当前处于离线状态，请连接网络后重试。':error?.name==='TimeoutError'?'加载时间较长，请检查网络或选择其他场景。':(error?.message || '请检查网络连接，也可以先选择其他场景。');
   byId('retry-load').hidden = false;
   byId('loading').classList.add('load-failed');
   byId('loading').classList.remove('hidden');
@@ -139,14 +144,17 @@ function clearReadouts() {
 }
 function waitForVideo(signal, source) {
   return new Promise((resolve,reject)=>{
-    const clean=()=>{video.removeEventListener('loadeddata',loaded);video.removeEventListener('error',failed);signal.removeEventListener('abort',aborted);};
-    const loaded=()=>{if(video.currentSrc!==new URL(source,location.href).href)return;clean();resolve();};
-    const failed=()=>{clean();reject(new Error('视频加载失败'));};
-    const aborted=()=>{clean();reject(new DOMException('回放已切换','AbortError'));};
-    video.addEventListener('loadeddata',loaded);video.addEventListener('error',failed);signal.addEventListener('abort',aborted,{once:true});
-    if(signal.aborted)aborted();
+    const events=['loadeddata','canplay','loadedmetadata','progress','seeked'];
+    const clean=()=>{events.forEach(e=>video.removeEventListener(e,loaded));video.removeEventListener('error',failed);signal.removeEventListener('abort',aborted);clearInterval(poll);};
+    const loaded=()=>{if(video.currentSrc!==new URL(source,location.href).href || video.readyState<2)return;clean();resolve();};
+    const failed=()=>{clean();reject(new Error('飞行画面加载失败，请重试'));};
+    const aborted=()=>{clean();reject(signal.reason || new DOMException('回放已切换','AbortError'));};
+    const poll=setInterval(loaded,200);
+    events.forEach(e=>video.addEventListener(e,loaded));video.addEventListener('error',failed);signal.addEventListener('abort',aborted,{once:true});
+    if(signal.aborted)aborted();else loaded();
   });
 }
+
 function validateSceneData(scene,key) {
   if(scene.format!=='presentation-v2'||scene.difficulty!==key||!Number.isInteger(scene.frames)||scene.frames<1)throw new Error('展示记录不匹配');
   for(const name of ['positionsXYZCm','actions','distanceCm','topdownMarkerXY'])if(!Array.isArray(scene[name])||scene[name].length!==scene.frames)throw new Error('展示帧数不匹配');
@@ -156,11 +164,16 @@ function validateScene(scene,key) {
   validateSceneData(scene,key);
   if(!Number.isFinite(video.duration)||Math.abs(video.duration-scene.frames/20)>.11)throw new Error('视频与展示帧数不匹配');
 }
-async function loadScene(key, variant, initialFrame=0) {
-  if (!Object.hasOwn(TASKS,key)) key='D3';
+async function loadScene(key,variant,initialFrame=0) {
+  try { await prepareScene(key,variant,initialFrame); }
+  catch(error) { videoListenerController?.abort(error); showError(error); }
+}
+async function prepareScene(key, variant, initialFrame=0) {
+  if (!Object.prototype.hasOwnProperty.call(TASKS,key)) key='D3';
   variant=Number(variant??state.selectedVariants[key]);
   if(!Number.isInteger(variant)||variant<1||variant>TASKS[key].scenes.length)variant=1;
   const generation=++state.generation;
+  seekRequest++;
   video.pause(); state.ready=false; state.failed=false; state.buffering=false; state.task=key; state.variant=variant; state.selectedVariants[key]=variant; state.scene=null; state.frame=0; state.pendingFrame=null;
   modelNetwork.clearScene();clearReadouts();
   byId('flight-panel').setAttribute('aria-busy','true');
@@ -172,7 +185,7 @@ async function loadScene(key, variant, initialFrame=0) {
   const options={signal:videoListenerController.signal};
   setEnabled(false);updateControls();
   byId('loading-message').textContent=`正在准备${task().name} · ${sceneTitle()}…`;
-  byId('loading-hint').textContent='首次打开需要载入高清画面，请稍候';
+  byId('loading-hint').textContent='正在载入当前场景，请稍候';
   for(const id of ['load-video','load-activity'])byId(id).classList.remove('complete');
   byId('retry-load').hidden=true;byId('loading').classList.remove('hidden','load-failed');
   document.body.classList.toggle('multimodal',key==='D4');byId('odor-card').hidden=key!=='D4';
@@ -183,7 +196,7 @@ async function loadScene(key, variant, initialFrame=0) {
   document.querySelector('.column-heading h2').lastChild.textContent=key==='D4'?'视嗅输入':'视觉输入';
   document.querySelector('.column-heading > span').textContent=key==='D4'?'双眼 + 触角':'左眼 / 右眼';
   document.querySelector('.eye-card .card-tag').textContent=key==='D4'?'64 × 64':'32 × 32';
-  byId('camera-resolution-badge').textContent=' · HD';byId('task-summary').textContent=`${sceneTitle()} · ${variantInfo().summary}`;byId('scene-id').textContent='';
+  byId('camera-resolution-badge').textContent=byId('quality').value==='hd'?' · HD':' · 流畅';byId('task-summary').textContent=`${sceneTitle()} · ${variantInfo().summary}`;byId('scene-id').textContent='';
   byId('network-dialog-title').textContent=`${task().model} · ${sceneTitle()} · ${key==='D4'?'视嗅融合到动作':'从视觉到动作'}`;
   document.querySelector('.footer span').textContent = 'ConnectomeFlight · 基于 FlyVis × FlyBody';
   document.querySelectorAll('[data-difficulty]').forEach(button=>{const active=button.dataset.difficulty===key;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
@@ -200,19 +213,22 @@ async function loadScene(key, variant, initialFrame=0) {
   const controller=videoListenerController;
   const timeout=setTimeout(()=>controller.abort(new DOMException('加载超时','TimeoutError')),90000);
   try {
-    const source=assetURL('.mp4'),mediaReady=waitForVideo(options.signal,source);
-    video.src=source;video.load();video.playbackRate=Number(byId('speed').value);
-    const sceneReady=fetch(assetURL('-display.json'),options).then(r=>{if(!r.ok)throw new Error('展示信息加载失败');return r.json();});
-    // Decode the activity atlas while the video arrives; apply only this generation.
-    const activityReady=sceneReady.then(async scene=>{
-      validateSceneData(scene,key);
-      await modelNetwork.loadScene(scene,`${task().name} · ${sceneTitle()}`,options.signal);
-      if(generation===state.generation)byId('load-activity').classList.add('complete');
-      return scene;
-    });
-    const [scene]=await Promise.all([activityReady,mediaReady.then(()=>{if(generation===state.generation)byId('load-video').classList.add('complete');}),key==='D4'?odorField.load():Promise.resolve()]);
+    const progress=(received,total,retry)=>{
+      if(generation!==state.generation)return;
+      byId('loading-hint').textContent=retry?'连接暂时中断，正在重试…':`正在载入场景信息 · ${Math.round(received/1024)} KB`;
+    };
+    const scene=await fetchResource(assetURL('-display.json'),{...options,onProgress:progress});
+    validateSceneData(scene,key);
+    byId('loading-hint').textContent='正在载入首段活动与飞行画面…';
+    const source=assetURL(byId('quality').value==='hd'?'.mp4':'-preview.mp4');
+    video.removeAttribute('src');video.load();
+    const mediaReady=waitForVideo(options.signal,source);
+    video.preload='auto';video.src=source;video.load();video.playbackRate=Number(byId('speed').value);
+    const activityReady=modelNetwork.loadScene(scene,`${task().name} · ${sceneTitle()}`,options.signal).then(()=>{if(generation===state.generation)byId('load-activity').classList.add('complete');});
+    await abortable(Promise.all([activityReady,mediaReady.then(()=>{if(generation===state.generation)byId('load-video').classList.add('complete');})]),options.signal);
     if(generation!==state.generation)return;
     validateScene(scene,key);
+    if(key==='D4')odorField.load(options.signal).then(()=>{if(generation===state.generation && state.ready)drawTrajectory();}).catch(()=>{if(generation===state.generation && !options.signal.aborted)toast('气味背景暂不可用，轨迹与触角读数仍正常显示');});
     state.scene=scene;
     state.ready=true;byId('flight-panel').setAttribute('aria-busy','false');byId('loading').classList.add('hidden');setEnabled(true);render(0);scheduleFrames(generation);
     if(Number.isInteger(initialFrame)&&initialFrame>0){const target=Math.min(initialFrame,lastFrame());url.searchParams.set('frame',String(target));history.replaceState(null,'',url);seek(target);}
@@ -220,22 +236,42 @@ async function loadScene(key, variant, initialFrame=0) {
   finally { clearTimeout(timeout); }
 }
 
-function seek(frame) {
-  if(!state.ready) return;
+let seekRequest=0;
+async function seek(frame,resume=false) {
+  if(!state.ready)return;
   frame=clamp(Math.round(frame),0,lastFrame());
-  state.pendingFrame=frame; video.pause();
-  video.currentTime=(frame+.1)/20;
-  updateControls();
+  const request=++seekRequest,generation=state.generation,signal=videoListenerController.signal;
+  video.pause();state.resumeAfterBuffer=resume;state.pendingFrame=frame;state.buffering=!modelNetwork.hasFrame(frame);updateControls();
+  try {
+    await modelNetwork.ensureFrame(frame);
+    if(request!==seekRequest || generation!==state.generation || signal.aborted)return;
+    if(Math.abs(video.currentTime-(frame+.1)/20)>.001) {
+      await new Promise((resolve,reject)=>{
+        const clean=()=>{clearTimeout(timer);video.removeEventListener('seeked',done);signal.removeEventListener('abort',aborted);};
+        const done=()=>{clean();resolve();};
+        const aborted=()=>{clean();reject(signal.reason || new DOMException('回放已切换','AbortError'));};
+        const timer=setTimeout(()=>{clean();reject(new DOMException('视频定位超时，请重试','TimeoutError'));},25000);
+        video.addEventListener('seeked',done);signal.addEventListener('abort',aborted,{once:true});
+        video.currentTime=(frame+.1)/20;
+        if(!video.seeking)done();
+      });
+    }
+    if(request!==seekRequest || generation!==state.generation)return;
+    state.buffering=false;render(frame);
+    if(state.resumeAfterBuffer && document.visibilityState==='visible')await video.play();
+  } catch(error) { if(request===seekRequest && generation===state.generation && !signal.aborted){videoListenerController.abort(error);showError(error);} }
 }
+
 async function togglePlay() {
   if(!state.ready) return;
+  if(state.buffering) {state.resumeAfterBuffer=!state.resumeAfterBuffer;updateControls();return;}
   if(!video.paused) {video.pause();updateControls();return;}
-  if(state.frame>=lastFrame()) video.currentTime=0;
+  if(state.frame>=lastFrame()) await seek(0);
   try{await video.play();updateControls();}catch{byId('network-sync').textContent='请再次点击播放';}
 }
 async function restart() {
   if(!state.ready)return;
-  seek(0);
+  await seek(0);
   try{await video.play();updateControls();}catch{updateControls();}
 }
 let toastTimer;
@@ -258,7 +294,8 @@ function toggleLoop() {
   toast(state.loop?'已开启循环播放':'已关闭循环播放');
 }
 byId('loop-button').addEventListener('click',toggleLoop);
-byId('retry-load').addEventListener('click',()=>loadScene(state.task,state.variant));
+byId('retry-load').addEventListener('click',()=>loadScene(state.task,state.variant,state.frame));
+byId('quality').addEventListener('change',()=>loadScene(state.task,state.variant,state.frame));
 byId('step-back').addEventListener('click',()=>seek((state.pendingFrame ?? state.frame)-1));
 byId('step-forward').addEventListener('click',()=>seek((state.pendingFrame ?? state.frame)+1));
 document.querySelectorAll('#timeline, [data-playback-timeline]').forEach(el=>el.addEventListener('input',()=>seek(Number(el.value))));
@@ -322,7 +359,7 @@ byId('share-copy').addEventListener('click',async()=>{
     byId('share-feedback').textContent='链接已选中，请使用系统复制操作。';
   }
 });
-document.addEventListener('visibilitychange',()=>{if(document.hidden){video.pause();state.buffering=false;updateControls();}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){state.resumeAfterBuffer=false;video.pause();state.buffering=false;updateControls();}});
 window.addEventListener('resize',()=>{if(state.ready)render();});
 
 window.addEventListener('keydown',event=>{

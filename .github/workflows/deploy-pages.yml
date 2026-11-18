@@ -26,6 +26,7 @@ jobs:
               '.github/workflows/deploy-pages.yml', '.gitignore', 'LICENSE',
               'README.md', 'serve.py', 'ATTRIBUTION.md', 'LICENSES/fly-brain-MIT.txt', 'assets/preview.jpg',
               'dist/index.html', 'dist/v3.html', 'dist/app.js', 'dist/style.css',
+              'dist/boot.js', 'dist/resource.js', 'tests/check_loading.py',
               'dist/model-network.css', 'dist/visual-polish.css', 'dist/demo.css',
               'dist/favicon.svg', 'dist/og-preview.jpg', 'dist/media/d3.mp4', 'dist/media/d4.mp4',
               'dist/model-network.js', 'dist/odor-field.js', 'dist/media/odor-field.png',
@@ -35,6 +36,10 @@ jobs:
           for task in ('d3','d4'):
               for index in (2,3):
                   expected.update(f'dist/media/{task}-{index}{suffix}' for suffix in ('.mp4','-display.json','-appearance.png'))
+          scene_frames = {'d3':197,'d3-2':194,'d3-3':213,'d4':417,'d4-2':420,'d4-3':399}
+          for name, frames in scene_frames.items():
+              expected.add(f'dist/media/{name}-preview.mp4')
+              expected.update(f'dist/media/{name}-activity-{start:04d}.png' for start in range(0,frames,16))
           tracked = set(subprocess.check_output(['git','ls-files','-z']).decode().strip('\0').split('\0'))
           actual = {str(p) for p in pathlib.Path('.').rglob('*') if p.is_file() and '.git' not in p.parts}
           assert tracked == expected, f'Unexpected tracked files: {tracked ^ expected}'
@@ -75,7 +80,7 @@ jobs:
               assert len(scene['topdownMarkerXY']) == frames
               assert all(len(p)==2 and all(round(v,1)==v and 0<=v<limit for v,limit in zip(p,(1280,720))) for p in scene['topdownMarkerXY'])
               layout = scene['networkLayout']
-              assert set(layout) == {'format','sampledNodesPerEye','fullNodesPerEye','cellTypes','layers','nodes','edges','appearance','imageWidth','imageHeight','rowsPerFrame'}
+              assert set(layout) == {'format','sampledNodesPerEye','fullNodesPerEye','cellTypes','layers','nodes','edges','appearance','imageWidth','imageHeight','rowsPerFrame','appearanceChunks'}
               assert layout['format'] == 'rendered-rgba-v1'
               assert all(set(t)=={'name','count','role'} for t in layout['cellTypes'])
               assert all(set(l)=={'id','width','title'} for l in layout['layers'])
@@ -98,9 +103,33 @@ jobs:
               structure = {k:layout[k] for k in ('sampledNodesPerEye','fullNodesPerEye','cellTypes','layers','nodes','edges','imageWidth','rowsPerFrame')}
               if task in layouts: assert structure == layouts[task], f'Model structure differs between scenes: {name}'
               else: layouts[task] = structure
+              chunks = layout['appearanceChunks']
+              assert [c['start'] for c in chunks] == list(range(0,frames,16))
+              for chunk in chunks:
+                  start = chunk['start']
+                  count = min(16,frames-start)
+                  assert chunk['frames'] == count
+                  assert chunk['url'] == f'./media/{name}-activity-{start:04d}.png'
+                  expected_height = layout['rowsPerFrame']*count + ((count*2 + layout['imageWidth']//size - 1)//(layout['imageWidth']//size))*size
+                  assert chunk['height'] == expected_height
+                  png = pathlib.Path('dist') / chunk['url'][2:]
+                  width,height,depth,color = struct.unpack('>IIBB',png.read_bytes()[16:26])
+                  assert (width,height,depth,color) == (layout['imageWidth'],expected_height,8,6)
+                  assert width<=4096 and height<=4096
               png = pathlib.Path(f'dist/media/{name}-appearance.png').read_bytes()
               width,height,depth,color = struct.unpack('>IIBB',png[16:26])
               assert (width,height,depth,color) == (layout['imageWidth'],layout['imageHeight'],8,6)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser regression dependencies
+        run: |
+          python -m pip install playwright==1.63.0 Pillow==12.3.0
+          python -m playwright install --with-deps chromium
+      - name: Check synchronized playback and failure recovery
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: python tests/check_loading.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

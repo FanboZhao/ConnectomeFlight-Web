@@ -1,3 +1,4 @@
+import { loadImage } from './resource.js?v=loading-20261118';
 /* Interactive display renderer. Inputs are RGBA appearance pixels and display geometry. */
 const byId = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -115,7 +116,7 @@ export class ModelNetwork {
   }
 
   clearScene() {
-    this.loadId++; this.data = null; this.frame = 0; this.hasActivity = false; this.hover = null;
+    this.loadId++; this.chunkCache = new Map(); this.chunkPending = new Map(); this.data = null; this.frame = 0; this.hasActivity = false; this.hover = null;
     byId('network-load').classList.remove('hidden');
     byId('network-load').textContent = '正在加载同一回放的真实模型活动…';
     byId('network-validation').textContent = '正在读取展示颜色贴图…';
@@ -126,30 +127,59 @@ export class ModelNetwork {
   }
 
   async loadScene(scene, taskName, signal) {
-    const loadId = ++this.loadId;
-    const layout = scene.networkLayout;
-    const image = new Image();
-    const abort=()=>{image.src='';};
-    if(signal?.aborted)throw new DOMException('回放已切换','AbortError');
-    signal?.addEventListener('abort',abort,{once:true});
-    try { image.src=`${layout.appearance}?v=three-scenes-20261029`;await image.decode(); }
-    finally { signal?.removeEventListener('abort',abort); }
-    if(signal?.aborted)throw new DOMException('回放已切换','AbortError');
-    if (loadId !== this.loadId) return;
-    if (image.width !== layout.imageWidth || image.height !== layout.imageHeight) throw new Error('展示颜色贴图尺寸不匹配');
-    const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
-    const ctx = canvas.getContext('2d', {willReadFrequently:true}); ctx.drawImage(image, 0, 0);
+    const loadId=++this.loadId;
+    this.scene=scene; this.taskName=taskName; this.signal=signal;
+    this.chunkCache=new Map(); this.chunkPending=new Map();
+    const layout=scene.networkLayout;
+    if (!Array.isArray(layout.appearanceChunks) || !layout.appearanceChunks.length) throw new Error('场景分段信息缺失，请刷新页面');
     this.applyTopology(layout);
-    this.data = { pixels: ctx.getImageData(0,0,image.width,image.height).data };
-    // Release decoding surfaces once the presentation pixels have been copied.
-    canvas.width=canvas.height=1; image.src='';
-    this.scene = scene; this.taskName = taskName; this.frame = 0; this.hasActivity = true;
-    this.stride = layout.imageWidth * layout.rowsPerFrame; this.rgbCache = new Map();
-    this.eyeSize = scene.sensorOffsets.eyeSize;
-    this.eyeCanvas.forEach(c => { c.width = c.height = this.eyeSize; });
-    this.updateEyes(); this.updateReadouts(); this.invalidate();
-    byId('network-load').classList.add('hidden'); byId('network-expand').disabled = false;
-    byId('network-validation').textContent = '显示颜色与同一回放帧同步；不读取或运行模型参数。';
+    this.stride=layout.imageWidth*layout.rowsPerFrame;
+    this.eyeSize=scene.sensorOffsets.eyeSize;
+    this.eyeCanvas.forEach(c=>{c.width=c.height=this.eyeSize;});
+    await this.ensureFrame(0);
+    if (loadId!==this.loadId || signal.aborted) return;
+    this.frame=0; this.rgbCache=new Map(); this.hasActivity=true;
+    this.setFrame(0);
+    byId('network-load').classList.add('hidden'); byId('network-expand').disabled=false;
+    byId('network-validation').textContent='显示颜色与同一回放帧同步；按播放进度载入。';
+  }
+
+  chunkFor(frame) {
+    return this.scene?.networkLayout.appearanceChunks.find(c=>frame>=c.start && frame<c.start+c.frames);
+  }
+
+  hasFrame(frame) { return this.chunkCache?.has(this.chunkFor(frame)?.start); }
+
+  async ensureFrame(frame) {
+    const chunk=this.chunkFor(frame);
+    if (!chunk) throw new Error('回放分段不存在');
+    const cache=this.chunkCache, pending=this.chunkPending;
+    if (cache.has(chunk.start)) return cache.get(chunk.start);
+    if (pending.has(chunk.start)) return pending.get(chunk.start);
+    const layout=this.scene.networkLayout, signal=this.signal;
+    const promise=(async()=>{
+      const image=await loadImage(`${chunk.url}?v=loading-20261118`,signal);
+      const canvas=document.createElement('canvas');
+      try {
+        if (signal.aborted) throw signal.reason || new DOMException('回放已切换','AbortError');
+        if (image.width!==layout.imageWidth || image.height!==chunk.height) throw new Error('回放分段尺寸不匹配');
+        canvas.width=image.width; canvas.height=image.height;
+        const ctx=canvas.getContext('2d',{willReadFrequently:true});
+        if (!ctx) throw new Error('当前设备无法读取画面，请换用浏览器重试');
+        ctx.drawImage(image,0,0);
+        const data={pixels:ctx.getImageData(0,0,image.width,image.height).data,start:chunk.start,frames:chunk.frames,eyes:chunk.frames*layout.rowsPerFrame*layout.imageWidth};
+        cache.set(chunk.start,data);
+        // Retain the displayed segment and at most two neighbouring segments.
+        while(cache.size>3) {
+          const victim=[...cache.keys()].find(k=>k!==this.data?.start && k!==chunk.start);
+          if(victim===undefined)break;
+          cache.delete(victim);
+        }
+        return data;
+      } finally { canvas.width=canvas.height=1;image.src=''; }
+    })();
+    pending.set(chunk.start,promise);
+    try { return await promise; } finally { pending.delete(chunk.start); }
   }
 
   buildNodes() {
@@ -161,7 +191,7 @@ export class ModelNetwork {
     this.invalidate();
   }
 
-  pixelOffset(index) { return (this.frame * this.stride + index) * 4; }
+  pixelOffset(index) { return ((this.frame - this.data.start) * this.stride + index) * 4; }
 
   colorAt(index) {
     const p = this.pixelOffset(index), data = this.data.pixels;
@@ -191,11 +221,15 @@ export class ModelNetwork {
   }
 
   setFrame(frame) {
-    if (!this.data) return;
-    const f = clamp(Math.round(frame), 0, this.scene.frames - 1);
-    if (f === this.frame && !this.needsDraw) return;
-    this.frame = f; if (f > 0 || this.playing) this.hasActivity = true;
+    const f=clamp(Math.round(frame),0,this.scene.frames-1);
+    const chunk=this.chunkFor(f), data=this.chunkCache.get(chunk?.start);
+    if (!data) return false;
+    this.data=data; this.frame=f; this.hasActivity=true;
     this.updateEyes(); this.updateReadouts(); this.invalidate();
+    // Prefetch only one segment ahead; failures remain recoverable on demand.
+    const next=chunk.start+chunk.frames;
+    if (f-chunk.start>=chunk.frames/2 && next<this.scene.frames) this.ensureFrame(next).catch(()=>{});
+    return true;
   }
 
   value(node) { return node.stage === 'actions' ? this.scene.actions[this.frame][node.unit] : 0; }
@@ -211,9 +245,9 @@ export class ModelNetwork {
     const size = this.eyeSize;
     for(let eye=0;eye<2;eye++) {
       const ctx = this.eyeCanvas[eye].getContext('2d'), image = ctx.createImageData(size,size);
-      const width=this.topology.imageWidth, columns=Math.floor(width/size), tile=this.frame*2+eye;
+      const width=this.topology.imageWidth, columns=Math.floor(width/size), tile=(this.frame-this.data.start)*2+eye;
       for(let y=0;y<size;y++) {
-        const start=(this.scene.sensorOffsets.eyes+(Math.floor(tile/columns)*size+y)*width+(tile%columns)*size)*4;
+        const start=(this.data.eyes+(Math.floor(tile/columns)*size+y)*width+(tile%columns)*size)*4;
         image.data.set(this.data.pixels.subarray(start,start+size*4),y*size*4);
       }
       ctx.putImageData(image,0,0);

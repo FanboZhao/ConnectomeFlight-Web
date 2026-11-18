@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0a1118">
   <meta name="description" content="ConnectomeFlight 视觉与嗅觉飞行观测台：双眼输入、高清飞行画面、轨迹与真实模型活动同屏同步显示。">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <meta property="og:type" content="website">
   <meta property="og:title" content="ConnectomeFlight · 感知与飞行观测台">
@@ -22,19 +22,19 @@
   <meta name="twitter:image" content="https://zhaofanbo.com/ConnectomeFlight-Web/og-preview.jpg">
   <link rel="canonical" href="https://zhaofanbo.com/ConnectomeFlight-Web/">
   <title>ConnectomeFlight · 感知与飞行观测台</title>
-  <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=final-polish-20261101">
-  <link rel="stylesheet" href="./style.css?v=final-polish-20261101">
-  <link rel="stylesheet" href="./model-network.css?v=final-polish-20261101">
-  <link rel="stylesheet" href="./visual-polish.css?v=final-polish-20261101">
-  <link rel="stylesheet" href="./demo.css?v=final-polish-20261101">
-  <script type="module" src="./app.js?v=final-polish-20261101"></script>
-  <link rel="modulepreload" href="./model-network.js?v=final-polish-20261101">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=loading-20261118">
+  <link rel="stylesheet" href="./style.css?v=loading-20261118">
+  <link rel="stylesheet" href="./model-network.css?v=loading-20261118">
+  <link rel="stylesheet" href="./visual-polish.css?v=loading-20261118">
+  <link rel="stylesheet" href="./demo.css?v=loading-20261118">
+  <script defer src="./boot.js?v=loading-20261118"></script>
+  <link rel="modulepreload" href="./model-network.js?v=loading-20261118">
 </head>
 <body>
   <a class="skip-link" href="#flight-panel">跳到飞行回放</a>
   <h1 class="sr-only">ConnectomeFlight 感知与飞行观测台</h1>
   <header class="topbar">
-    <a class="brand" href="./" aria-label="ConnectomeFlight 观测台首页"><span class="brand-mark" aria-hidden="true"><img src="./favicon.svg?v=final-polish-20261101" alt=""></span><strong>ConnectomeFlight</strong></a>
+    <a class="brand" href="./" aria-label="ConnectomeFlight 观测台首页"><span class="brand-mark" aria-hidden="true"><img src="./favicon.svg?v=loading-20261118" alt=""></span><strong>ConnectomeFlight</strong></a>
     <div class="difficulty-list task-switcher" role="group" aria-label="选择实验任务">
           <button class="difficulty active" type="button" data-difficulty="D3" aria-pressed="true" title="视觉导航：可见球形目标随机树林；T4/T5 读出，115 参数"><strong>视觉导航</strong></button>
           <button class="difficulty" type="button" data-difficulty="D4" aria-pressed="false" title="视嗅导航：视觉与嗅觉，四目标气味源导航"><strong>视嗅导航</strong></button>
@@ -88,7 +88,7 @@
         <div class="camera-overlay camera-overlay-top"><span class="badge">TOPDOWN · 固定俯视</span><button id="topdown-expand" data-camera-view="topdown" class="camera-zoom-button" type="button" aria-label="放大固定俯视摄像头画面" title="放大固定俯视摄像头画面" disabled><svg class="ui-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2H2v4M10 2h4v4M2 10v4h4M14 10v4h-4"></path></svg></button></div>
         <div class="camera-overlay camera-overlay-bottom"><span id="topdown-time">T + 0.000 S</span><span>X → · Y ↑</span></div>
       </div>
-      <div id="loading" class="loading" role="status"><span class="loading-orbit" aria-hidden="true"></span><p id="loading-message">正在准备同步回放…</p><div class="loading-steps" aria-hidden="true"><span id="load-video">飞行画面</span><i></i><span id="load-activity">感官与模型活动</span></div><small id="loading-hint">首次打开需要载入高清画面，请稍候</small><button id="retry-load" type="button" hidden>重新加载当前场景</button></div>
+      <div id="loading" class="loading" role="status"><span class="loading-orbit" aria-hidden="true"></span><p id="loading-message">正在准备同步回放…</p><div class="loading-steps" aria-hidden="true"><span id="load-video">飞行画面</span><i></i><span id="load-activity">感官与模型活动</span></div><small id="loading-hint">正在载入当前场景，请稍候</small><button id="retry-load" type="button" hidden>重新加载当前场景</button><a id="startup-retry" href="" class="startup-retry">长时间无响应？重新打开页面</a></div>
       </div>
       <div class="transport" aria-label="所有视图共享的回放控制">
         <button id="play-button" class="play-button" type="button" aria-label="播放" title="播放 / 暂停（空格）" disabled>▶</button>
@@ -96,6 +96,7 @@
         <button id="step-back" class="step-button" type="button" aria-label="后退一帧" title="后退一帧" disabled><svg class="ui-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="m10 4-4 4 4 4"></path></svg></button><button id="step-forward" class="step-button" type="button" aria-label="前进一帧" title="前进一帧" disabled><svg class="ui-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="m6 4 4 4-4 4"></path></svg></button>
         <div class="timeline-control"><input id="timeline" type="range" min="0" max="0" value="0" aria-label="飞行时间轴" disabled><div class="timeline-meta"><span id="timeline-state">等待回放</span><span>仿真时间 <strong data-playback-time>0.000 / 0.000 s</strong></span></div></div>
         <button id="loop-button" class="step-button" type="button" aria-label="循环播放" aria-pressed="false" title="循环播放（L）" disabled><svg class="ui-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h9l-2-2m2 2-2 2M13 12H4l2 2m-2-2 2-2M13 5v3M3 11V8"></path></svg></button>
+        <label class="speed-control quality-control"><span>画质</span><select id="quality" aria-label="回放画质"><option value="smooth" selected>流畅</option><option value="hd">高清</option></select></label>
         <label class="speed-control"><span>速度</span><select id="speed" aria-label="回放速度"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
       </div>
       <div id="panel-divider" class="panel-divider" role="separator" tabindex="0" aria-orientation="horizontal" aria-controls="flight-panel model-network" aria-label="调整飞行画面与模型活动的高度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" title="拖动调整高度 · 双击恢复 · 上下方向键微调 · Home 恢复"></div>
@@ -153,6 +154,6 @@
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <noscript><p class="noscript-message">请启用 JavaScript 以查看同步飞行回放、感官输入和模型活动。</p></noscript>
-  <video id="replay-source" muted playsinline preload="auto" aria-hidden="true"></video>
+  <video id="replay-source" muted playsinline preload="metadata" aria-hidden="true"></video>
 </body>
 </html>

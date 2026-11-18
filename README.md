@@ -70,7 +70,21 @@ serve.py              local preview server
 .github/workflows/    deployment and presentation-boundary checks
 ```
 
-Each scene ships as one H.264 video (two cameras side by side), one RGBA appearance texture for the interactive model graph, and one display JSON with the rounded trajectory, actions, markers and layout. The deployment workflow validates the file boundary, JSON schema, frame counts and PNG bounds before publishing.
+Each scene ships with H.264 videos in smooth and HD quality (two cameras side by side), lossless RGBA segments loaded on demand for the interactive model graph, and one display JSON with the rounded trajectory, actions, markers and layout. The deployment workflow validates the file boundary, JSON schema, frame counts and PNG bounds before publishing.
+
+## Loading and recovery
+
+The default smooth videos are about 1.3–2.1 MB; the original HD videos remain available in the quality selector. Activity colors are split into 16-frame segments, with only the current segment required at startup and at most three decoded segments retained. The original atlases remain available as reference assets. Cameras, sensors and activity views remain on the same frame while a segment buffers.
+
+Startup errors show a reload action. Essential scene requests have a total deadline and bounded retries; optional odor backgrounds cannot block playback. The deployment runs six-scene browser checks covering eye-pixel correspondence, segment boundaries, seeking, request failures and cancellation.
+
+To run browser regressions locally (development dependencies only):
+
+```sh
+python -m pip install playwright==1.63.0 Pillow==12.3.0
+python -m playwright install chromium
+python tests/check_loading.py
+```
 
 ## Using the page
 

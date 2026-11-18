@@ -1,26 +1,26 @@
+import { loadImage } from './resource.js?v=loading-20261118';
 /* Render a prepainted odor-field backdrop; no environment or sampling model. */
 // The shared appearance texture was painted around the first displayed source.
 const REFERENCE_SOURCE = [28, -4.5];
 export class OdorFieldLayer {
-  async load() {
-    if(!this.promise) this.promise=(async()=>{
-      const image=new Image();image.src='./media/odor-field.png';await image.decode();
-      this.image=document.createElement('canvas');
-      this.image.width=image.naturalWidth;this.image.height=image.naturalHeight;
-      const ctx=this.image.getContext('2d');
-      const {width,height}=this.image;
-      ctx.drawImage(image,0,0);
-      // Blend the backdrop into the plot instead of exposing its rectangular edge.
-      ctx.globalCompositeOperation='destination-in';
-      for(const [x,y,fade] of [[width,0,.08],[0,height,.24]]) {
-        const mask=ctx.createLinearGradient(0,0,x,y);
-        mask.addColorStop(0,'transparent');mask.addColorStop(fade,'#fff');
-        mask.addColorStop(1-fade,'#fff');mask.addColorStop(1,'transparent');
-        ctx.fillStyle=mask;ctx.fillRect(0,0,width,height);
-      }
-    })().catch(error=>{this.promise=null;this.image=null;throw error;});
-    return this.promise;
+  async load(signal) {
+    if(this.image)return;
+    const image=await loadImage('./media/odor-field.png?v=loading-20261118',signal);
+    if(signal.aborted)throw signal.reason;
+    const canvas=document.createElement('canvas');
+    canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;
+    const ctx=canvas.getContext('2d'),{width,height}=canvas;
+    ctx.drawImage(image,0,0);image.src='';
+    ctx.globalCompositeOperation='destination-in';
+    for(const [x,y,fade] of [[width,0,.08],[0,height,.24]]) {
+      const mask=ctx.createLinearGradient(0,0,x,y);
+      mask.addColorStop(0,'transparent');mask.addColorStop(fade,'#fff');
+      mask.addColorStop(1-fade,'#fff');mask.addColorStop(1,'transparent');
+      ctx.fillStyle=mask;ctx.fillRect(0,0,width,height);
+    }
+    this.image=canvas;
   }
+
   draw(ctx,{width,height,unproject,source,time=0}) {
     if(!this.image?.width)return;
     const o=unproject([0,0]),x=unproject([width,0]),y=unproject([0,height]);
