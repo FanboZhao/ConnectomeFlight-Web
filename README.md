@@ -74,7 +74,7 @@ Each scene ships with H.264 videos in smooth and HD quality (two cameras side by
 
 ## Loading and recovery
 
-The default smooth videos are about 1.3–2.1 MB; the original HD videos remain available in the quality selector. Activity colors are split into 16-frame segments, with only the current segment required at startup and at most three decoded segments retained. The original atlases remain available as reference assets. Cameras, sensors and activity views remain on the same frame while a segment buffers.
+The default smooth videos are about 0.3–0.52 MB; the original HD videos remain available in the quality selector. Activity colors are split into 8-frame segments, with only the current segment required at startup and at most three decoded segments retained. The original atlases remain available as reference assets. Cameras, sensors and activity views remain on the same frame while a segment buffers.
 
 Startup errors show a reload action. Essential scene requests have a total deadline and bounded retries; optional odor backgrounds cannot block playback. The deployment runs six-scene browser checks covering eye-pixel correspondence, segment boundaries, seeking, request failures and cancellation.
 

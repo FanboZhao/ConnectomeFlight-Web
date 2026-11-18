@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import sys
 import threading
+import time
 from http.server import ThreadingHTTPServer
 
 sys.dont_write_bytecode = True
@@ -15,6 +16,27 @@ from playwright.sync_api import sync_playwright
 
 FAST_CLOCK = """const timer=window.setTimeout;window.setTimeout=(fn,ms,...args)=>timer(fn,({90000:1500,30000:1000,25000:400,500:30,1000:60})[ms]??ms,...args);"""
 CANVAS_LIMIT = """const original=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(...args){if(this.width>4096||this.height>4096)throw Error('Canvas exceeds mobile bounds');return original.apply(this,args);};"""
+
+
+class TestHandler(Handler):
+    slow_path = None
+    slow_requests = 0
+
+    def copyfile(self, source, output):
+        if not self.slow_path or not self.path.startswith(self.slow_path):
+            return super().copyfile(source, output)
+        type(self).slow_requests += 1
+        try:
+            while self.remaining:
+                chunk = source.read(min(16384, self.remaining))
+                if not chunk:
+                    break
+                output.write(chunk)
+                output.flush()
+                self.remaining -= len(chunk)
+                time.sleep(.12)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
 
 def wait_ready(page):
@@ -41,7 +63,7 @@ def verify_eye(page, scene, image, frame):
 
 
 def main():
-    server = ThreadingHTTPServer(('127.0.0.1',0), Handler)
+    server = ThreadingHTTPServer(('127.0.0.1',0), TestHandler)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     base = f'http://127.0.0.1:{server.server_port}/'
     checks = []
@@ -63,7 +85,7 @@ def main():
                 page.goto(f'{base}?task={task.upper()}&scene={variant}')
                 wait_ready(page)
                 assert not any('-appearance.png' in u for u in requests)
-                for frame in [0,15,16,31,64,scene['frames']-1,0]:
+                for frame in [0,7,8,15,16,31,64,scene['frames']-1,0]:
                     seek(page,frame); verify_eye(page,scene,image,frame)
                 seek(page,14)
                 page.click('#play-button')
@@ -82,6 +104,12 @@ def main():
             return context,page,errors
 
         attempts=[]
+        TestHandler.slow_path='/media/d3-activity-0000.png'
+        context,page,errors=fault('slow-progress')
+        wait_ready(page);assert not errors;assert TestHandler.slow_requests==1
+        context.close();TestHandler.slow_path=None
+        checks.append('slow progressing transfer finishes without being discarded')
+
         def transient(route):
             attempts.append(route.request.url)
             if len(attempts)==1:route.fulfill(status=503,body='Try again')

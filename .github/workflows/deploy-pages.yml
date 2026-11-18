@@ -39,7 +39,7 @@ jobs:
           scene_frames = {'d3':197,'d3-2':194,'d3-3':213,'d4':417,'d4-2':420,'d4-3':399}
           for name, frames in scene_frames.items():
               expected.add(f'dist/media/{name}-preview.mp4')
-              expected.update(f'dist/media/{name}-activity-{start:04d}.png' for start in range(0,frames,16))
+              expected.update(f'dist/media/{name}-activity-{start:04d}.png' for start in range(0,frames,8))
           tracked = set(subprocess.check_output(['git','ls-files','-z']).decode().strip('\0').split('\0'))
           actual = {str(p) for p in pathlib.Path('.').rglob('*') if p.is_file() and '.git' not in p.parts}
           assert tracked == expected, f'Unexpected tracked files: {tracked ^ expected}'
@@ -104,10 +104,10 @@ jobs:
               if task in layouts: assert structure == layouts[task], f'Model structure differs between scenes: {name}'
               else: layouts[task] = structure
               chunks = layout['appearanceChunks']
-              assert [c['start'] for c in chunks] == list(range(0,frames,16))
+              assert [c['start'] for c in chunks] == list(range(0,frames,8))
               for chunk in chunks:
                   start = chunk['start']
-                  count = min(16,frames-start)
+                  count = min(8,frames-start)
                   assert chunk['frames'] == count
                   assert chunk['url'] == f'./media/{name}-activity-{start:04d}.png'
                   expected_height = layout['rowsPerFrame']*count + ((count*2 + layout['imageWidth']//size - 1)//(layout['imageWidth']//size))*size

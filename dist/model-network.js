@@ -1,4 +1,4 @@
-import { loadImage } from './resource.js?v=loading-20261118';
+import { loadImage } from './resource.js?v=loading-20261118b';
 /* Interactive display renderer. Inputs are RGBA appearance pixels and display geometry. */
 const byId = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -158,7 +158,7 @@ export class ModelNetwork {
     if (pending.has(chunk.start)) return pending.get(chunk.start);
     const layout=this.scene.networkLayout, signal=this.signal;
     const promise=(async()=>{
-      const image=await loadImage(`${chunk.url}?v=loading-20261118`,signal);
+      const image=await loadImage(`${chunk.url}?v=loading-20261118b`,signal);
       const canvas=document.createElement('canvas');
       try {
         if (signal.aborted) throw signal.reason || new DOMException('回放已切换','AbortError');

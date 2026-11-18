@@ -1,6 +1,6 @@
-import { fetchResource, abortable } from './resource.js?v=loading-20261118';
-import { ModelNetwork } from './model-network.js?v=loading-20261118';
-import { OdorFieldLayer } from './odor-field.js?v=loading-20261118';
+import { fetchResource, abortable } from './resource.js?v=loading-20261118b';
+import { ModelNetwork } from './model-network.js?v=loading-20261118b';
+import { OdorFieldLayer } from './odor-field.js?v=loading-20261118b';
 const byId = id => document.getElementById(id);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const TASKS = {
@@ -15,7 +15,7 @@ const TASKS = {
     {detail:'中部气味源', summary:'中部气味源 · 不同树障碍布局'},
   ] },
 };
-const ASSET_VERSION = 'loading-20261118';
+const ASSET_VERSION = 'loading-20261118b';
 const CROPS = {follow:[0,0,1280,720],topdown:[1280,0,1280,720]};
 const modelNetwork = new ModelNetwork();
 const odorField = new OdorFieldLayer();
@@ -113,7 +113,7 @@ function showError(error) {
   video.removeAttribute('src');video.load();
   byId('flight-panel').setAttribute('aria-busy','false');
   byId('loading-message').textContent = `未能载入${sceneTitle()}，请重试。`;
-  byId('loading-hint').textContent = navigator.onLine===false?'当前处于离线状态，请连接网络后重试。':error?.name==='TimeoutError'?'加载时间较长，请检查网络或选择其他场景。':(error?.message || '请检查网络连接，也可以先选择其他场景。');
+  byId('loading-hint').textContent = navigator.onLine===false?'当前处于离线状态，请连接网络后重试。':error?.name==='TimeoutError'?(error.message || '加载时间较长，请检查网络或选择其他场景。'):(error?.message || '请检查网络连接，也可以先选择其他场景。');
   byId('retry-load').hidden = false;
   byId('loading').classList.add('load-failed');
   byId('loading').classList.remove('hidden');
@@ -218,6 +218,7 @@ async function prepareScene(key, variant, initialFrame=0) {
       byId('loading-hint').textContent=retry?'连接暂时中断，正在重试…':`正在载入场景信息 · ${Math.round(received/1024)} KB`;
     };
     const scene=await fetchResource(assetURL('-display.json'),{...options,onProgress:progress});
+    if(generation!==state.generation || options.signal.aborted)return;
     validateSceneData(scene,key);
     byId('loading-hint').textContent='正在载入首段活动与飞行画面…';
     const source=assetURL(byId('quality').value==='hd'?'.mp4':'-preview.mp4');
@@ -250,7 +251,7 @@ async function seek(frame,resume=false) {
         const clean=()=>{clearTimeout(timer);video.removeEventListener('seeked',done);signal.removeEventListener('abort',aborted);};
         const done=()=>{clean();resolve();};
         const aborted=()=>{clean();reject(signal.reason || new DOMException('回放已切换','AbortError'));};
-        const timer=setTimeout(()=>{clean();reject(new DOMException('视频定位超时，请重试','TimeoutError'));},25000);
+        const timer=setTimeout(()=>{clean();reject(new DOMException('视频定位超时，请重试','TimeoutError'));},90000);
         video.addEventListener('seeked',done);signal.addEventListener('abort',aborted,{once:true});
         video.currentTime=(frame+.1)/20;
         if(!video.seeking)done();

@@ -15,7 +15,11 @@ export async function fetchResource(url, {signal, kind='json', onProgress=()=>{}
     const abort = () => controller.abort(signal.reason);
     if (signal?.aborted) throw signal.reason || new DOMException('加载已取消','AbortError');
     signal?.addEventListener('abort', abort, {once:true});
-    const timer = setTimeout(() => controller.abort(new DOMException('资源加载超时','TimeoutError')), 25000);
+    let timer;
+    const resetIdle=()=>{clearTimeout(timer);timer=setTimeout(()=>controller.abort(new DOMException('资源下载停滞，请重试','TimeoutError')),25000);};
+    // Allow a slow, progressing transfer to finish instead of discarding it every 25 s.
+    const deadline=setTimeout(()=>controller.abort(new DOMException('资源加载超时','TimeoutError')),90000);
+    resetIdle();
     try {
       const response = await fetch(url, {signal:controller.signal});
       if (!response.ok) {
@@ -23,6 +27,7 @@ export async function fetchResource(url, {signal, kind='json', onProgress=()=>{}
         error.permanent = response.status>=400 && response.status<500 && ![408,429].includes(response.status);
         throw error;
       }
+      resetIdle();
       const total = Number(response.headers.get('Content-Length'));
       let blob;
       if (response.body?.getReader) {
@@ -31,7 +36,7 @@ export async function fetchResource(url, {signal, kind='json', onProgress=()=>{}
         for (;;) {
           const {done,value}=await reader.read();
           if (done) break;
-          chunks.push(value); received+=value.byteLength; onProgress(received,total);
+          resetIdle();chunks.push(value); received+=value.byteLength; onProgress(received,total);
         }
         blob=new Blob(chunks,{type:response.headers.get('Content-Type')||''});
       } else blob=await response.blob();
@@ -46,7 +51,7 @@ export async function fetchResource(url, {signal, kind='json', onProgress=()=>{}
       onProgress(0,0,attempt+1);
       await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));
     } finally {
-      clearTimeout(timer); signal?.removeEventListener('abort',abort);
+      clearTimeout(timer);clearTimeout(deadline); signal?.removeEventListener('abort',abort);
     }
   }
 }

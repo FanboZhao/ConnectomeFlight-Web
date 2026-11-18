@@ -1,11 +1,11 @@
-import { loadImage } from './resource.js?v=loading-20261118';
+import { loadImage } from './resource.js?v=loading-20261118b';
 /* Render a prepainted odor-field backdrop; no environment or sampling model. */
 // The shared appearance texture was painted around the first displayed source.
 const REFERENCE_SOURCE = [28, -4.5];
 export class OdorFieldLayer {
   async load(signal) {
     if(this.image)return;
-    const image=await loadImage('./media/odor-field.png?v=loading-20261118',signal);
+    const image=await loadImage('./media/odor-field.png?v=loading-20261118b',signal);
     if(signal.aborted)throw signal.reason;
     const canvas=document.createElement('canvas');
     canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;
