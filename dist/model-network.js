@@ -79,7 +79,7 @@ function drawResidualLabels(ctx, stages, width, height) {
   }
 }
 // Fit the explanatory projection to both dimensions; display nodes retain their original placement.
-const projectionScale = (width, height, overview = false) => Math.min(Math.max(0, height - 54) / 360, width / (overview ? 650 : 1100), 1.4);
+const projectionScale = (width, height, overview = false) => Math.min(Math.max(0, height - 54) / 310, width / (overview ? 600 : 950), 2.4);
 
 export class ModelNetwork {
   constructor() {
@@ -287,9 +287,15 @@ export class ModelNetwork {
     const anchors = {pooled:.34, compressed:.435, readout:.515, latent:.58, memory:.66,
       control:.74, baseLogits:.82, odorInput:.35, odorMemory:.47, residualHidden:.66,
       residualLogits:.82, logits:.895, actions:.966};
-    return {compact, anchors, upper:height*(compact?.295:.29), lower:height*(compact?.72:.72),
-      visualScale:Math.min(width*(compact?.00058:.0007),height*(compact?.00145:.0014),.9),
-      eyeX:width*.055, visionX:width*.18, eyeY:[height*.30,height*.72]};
+    const upperTop=compact?40:56, upperBottom=height*.46-22;
+    const lowerTop=height*.53+35, lowerBottom=height*.97-25;
+    const visualTop=36, visualBottom=height-20, rowHeight=(visualBottom-visualTop)/2;
+    const eyeSize=Math.max(24,Math.min(width*.09,rowHeight-25,104));
+    const visualScale=Math.max(.15,Math.min((rowHeight-12)/150,width*.00105,1.8));
+    return {compact, anchors, upper:(upperTop+upperBottom)/2, lower:(lowerTop+lowerBottom)/2,
+      gridUpper:Math.max(20,upperBottom-upperTop),gridLower:Math.max(20,lowerBottom-lowerTop),
+      visualScale,eyeSize,eyeX:width*.055,visionX:width*.18,
+      eyeY:[visualTop+rowHeight*.5,visualTop+rowHeight*1.5]};
   }
 
   projectResidual(canvas, width, height) {
@@ -311,14 +317,14 @@ export class ModelNetwork {
         if(['pooled','compressed','odorMemory','residualHidden'].includes(stage)) {
           const n=this.layerById.get(stage).width;
           const cols=stage==='pooled'?12:stage==='compressed'?8:4,rows=Math.ceil(n/cols);
-          const gridW=Math.min(width*(stage==='pooled'?.072:stage==='compressed'?.052:.038),l.compact?44:66);
-          const gridH=Math.min(height*(l.compact?.16:.23),l.compact?44:94);
+          const gridW=width*(stage==='pooled'?.072:stage==='compressed'?.052:.060);
+          const gridH=['odorMemory','residualHidden'].includes(stage)?l.gridLower:l.gridUpper;
           x+=((unit%cols)/(cols-1)-.5)*gridW;
           y+=(Math.floor(unit/cols)/(rows-1)-.5)*gridH;
         } else if(stage==='odorInput') y+=(unit-.5)*Math.min(16,height*.06);
         else if(['baseLogits','residualLogits'].includes(stage)) y+=(unit-1)*Math.min(height*.055,28);
-        else if(stage==='logits') y=height*.505+(unit-1)*Math.min(height*.105,52);
-        else if(stage==='actions') y=height*.505+(unit-1)*Math.min(height*.105,52);
+        else if(stage==='logits') y=(l.upper+l.lower)/2+(unit-1)*Math.min((l.lower-l.upper)*.68,(height-104)/2);
+        else if(stage==='actions') y=(l.upper+l.lower)/2+(unit-1)*Math.min((l.lower-l.upper)*.68,(height-104)/2);
       }
       points[i*2]=x;points[i*2+1]=y;
     });
@@ -357,13 +363,12 @@ export class ModelNetwork {
       text('1 → 3',w*.79,h*.46-9,9,'#789e94');
       text('2 → 32 · RNN',w*.42,h*.97-12,w<520?8:9,'#a899bc');
       text('33 → 32 → 3',w*.71,h*.97-12,w<520?8:9,'#a899bc');
-      text('＋ → tanh',w*.93,h*.85,9,'#96aaa8');
+      text('＋ → tanh',w*.93,h-10,9,'#96aaa8');
     }else{
-      text('视觉通路',w*.30,29,12,'#b8dacb','left');text('嗅觉与残差',w*.30,h*.53+26,12,'#cbbfdf','left');
       for(const stage of this.stages.filter(s=>layout.anchors[s.id]!==undefined&& !['logits','actions'].includes(s.id))){
         const lower=['odorInput','odorMemory','residualHidden','residualLogits'].includes(stage.id),x=layout.anchors[stage.id]*w;
-        text(stage.name,x,h*(lower?.62:.16),11,lower?'#cbbfdf':'#bfd7cd');
-        text(stage.id==='memory'?'1 · EMA 50 ms':stage.detail,x,h*(lower?.92:.435),10,lower?'#9a8dab':'#7d9e91');
+        text(stage.name,x,lower?h*.53+25:32,11,lower?'#cbbfdf':'#bfd7cd');
+        text(stage.id==='memory'?'1 · EMA 50 ms':stage.detail,x,lower?h*.97-10:h*.46-8,10,lower?'#9a8dab':'#7d9e91');
       }
       text('动作合成',w*.93,29,12,'#cdd8cf');text('逐项相加',w*.895,h*.22,11,'#a4b7af');text('tanh',w*.966,h*.22,11,'#a4b7af');
     }
@@ -373,9 +378,9 @@ export class ModelNetwork {
     }
     // Eye frames and visual-network silhouettes are structural decoration only.
     for(let eye=0;eye<2;eye++){
-      const x=layout.visionX,y=layout.eyeY[eye],r=82*layout.visualScale;
+      const x=layout.visionX,y=layout.eyeY[eye],r=75*layout.visualScale;
       ctx.beginPath();ctx.ellipse(x,y,r,r*.92,-.18,0,Math.PI*2);ctx.strokeStyle='#b3d5c322';ctx.lineWidth=.8;ctx.stroke();
-      const size=Math.min(w*.075,h*.15,compact?40:64);
+      const size=layout.eyeSize;
       box(layout.eyeX-size/2-3,y-size/2-3,size+6,size+6,'#0b141b','#91b5a73a',4);
       if(this.eyeCanvas?.[eye]&&this.data){ctx.imageSmoothingEnabled=false;ctx.drawImage(this.eyeCanvas[eye],layout.eyeX-size/2,y-size/2,size,size);ctx.imageSmoothingEnabled=true;}
       text(eye?'R':'L',layout.eyeX,y+size/2+16,9,'#829c98');
@@ -387,12 +392,14 @@ export class ModelNetwork {
       const vision=node.stage==='vision',focused=this.cellType<0||!vision||node.type===this.cellType;
       const x=p[i*2],y=p[i*2+1];
       let alpha=this.residualNodeAlpha(node,i);
-      alpha*=vision?(this.cellType>=0&&focused?.85:compact?.30:.48):1;
+      alpha*=vision?(this.cellType>=0&&focused?.85:compact?.48:.58):1;
       if(!focused)alpha*=.12;
       ctx.globalAlpha=alpha;ctx.fillStyle=this.residualNodeColor(node,i);
-      if(vision){const size=compact?.7:.9;ctx.fillRect(x-size/2,y-size/2,size,size);return;}
+      if(vision){const size=compact?1.1:1.35;ctx.fillRect(x-size/2,y-size/2,size,size);return;}
       const matrix=['pooled','compressed','odorMemory','residualHidden'].includes(node.stage);
-      const radius=matrix?(compact?(w<520?1:1.45):2):node.stage==='actions'?(compact?4.2:5.5):node.stage==='memory'?(compact?4:5):compact?2.5:3.5;
+      const cols=node.stage==='pooled'?12:node.stage==='compressed'?8:4;
+      const gridH=['odorMemory','residualHidden'].includes(node.stage)?layout.gridLower:layout.gridUpper;
+      const radius=matrix?Math.min(compact?2.5:3,Math.max(1.1,gridH/Math.max(1,Math.ceil((this.layerById.get(node.stage)?.width||1)/cols)-1)*.30)):node.stage==='actions'?(compact?6:7):node.stage==='memory'?(compact?5:6):compact?4:5;
       ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
       if(!matrix){ctx.globalAlpha=.7;ctx.strokeStyle=node.stage==='memory'?'#bfe5ca80':'#a8c6bb32';ctx.lineWidth=.8;ctx.beginPath();ctx.arc(x,y,radius+(node.stage==='memory'?4:2),0,Math.PI*2);ctx.stroke();}
       ctx.globalAlpha=1;
@@ -428,7 +435,7 @@ export class ModelNetwork {
     const points = new Float32Array(this.nodes.length * 2), anchors = Object.fromEntries(this.stages.map(s => [s.id, s.x * width]));
     const s = projectionScale(width, height, canvas === this.small), center = height * .51;
     // Policy layers use the available vertical space independently of the two-eye projection.
-    const policyX = Math.min(width / 850, 1.3), policyY = Math.min(Math.max(0, height - 96) / 150, 1.6);
+    const policyX = Math.min(width / 720, 2), policyY = Math.max(0,height-88)/144;
     const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw), cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     this.nodes.forEach((node, i) => {
       const x = node.dx * cy + node.dz * sy, z = -node.dx * sy + node.dz * cy;
@@ -437,13 +444,13 @@ export class ModelNetwork {
       points[i * 2 + 1] = center + y * s + (node.stage === 'vision' ? (node.eye ? 92 : -92) * s : 0);
       if (node.stage !== 'vision' && node.stage !== 'actions') {
         points[i * 2] = anchors[node.stage] + x * policyX;
-        points[i * 2 + 1] = center + y * policyY;
+        points[i * 2 + 1] = center + y * (node.stage==='pooled'?Math.max(0,height-88)/121:policyY);
       }
       if (this.multimodal && ['readout', 'latent', 'odorInput', 'odorMemory'].includes(node.stage)) {
         const lower = node.stage.startsWith('odor');
         points[i * 2 + 1] = height * (lower ? .76 : .34) + y * policyY * .43;
       }
-      if (node.stage === 'actions') points[i * 2 + 1] = center + node.dy * Math.min(height / 340, 1.4);
+      if (node.stage === 'actions') points[i * 2 + 1] = center + node.dy * Math.max(0,height-160)/150;
       if (this.residualPolicy && node.stage !== 'vision') {
         const stage = this.stages.find(s => s.id === node.stage);
         const vertical = node.stage === 'actions' ? Math.min(height / 700, .7) : Math.min(height / 640, .65);
@@ -476,12 +483,12 @@ export class ModelNetwork {
     for (const stage of this.stages.filter(stage => stage.name)) {
       const layer = this.topology.layers.find(item => item.id === stage.id);
       const compactLabels = [layer?.title || COMPACT_LABELS[stage.id]?.[0] || stage.name, stage.id === 'memory' ? 'EMA 50 ms' : layer ? `${layer.width}${stage.id === 'actions' ? '项' : '维'}` : COMPACT_LABELS[stage.id]?.[1] || stage.detail];
-      const x = stage.x * width, labels = compact || width < 1100 ? compactLabels : [stage.name, stage.detail];
+      const x = stage.x * width, labels = [compact || width < 1100 ? compactLabels[0] : stage.name, compactLabels[1]];
       ctx.textAlign = 'center'; ctx.fillStyle = '#dceae7'; ctx.font = `600 ${width < 640 ? 11 : 12}px -apple-system, sans-serif`;
       // Keep semantic names readable when several stages share a narrow panel.
       const titleLines = compact && width < 520 ? [labels[0].slice(0, 2), labels[0].slice(2)] : [labels[0]];
       titleLines.forEach((line, i) => ctx.fillText(line, x, titleLines.length > 1 ? 17 + i * 14 : compact ? 20 : 26));
-      ctx.fillStyle = '#99bba5'; ctx.font = '10px ui-monospace, monospace'; if (!this.multimodal || !['readout', 'latent'].includes(stage.id)) ctx.fillText(labels[1], x, height - (compact ? 12 : 18));
+      ctx.fillStyle = '#99bba5'; ctx.font = '10px ui-monospace, monospace'; if (stage.id!=='vision' && (!this.multimodal || !['readout', 'latent'].includes(stage.id))) ctx.fillText(labels[1], x, height - (compact ? 12 : 18));
     }
     if (this.multimodal) {
       ctx.fillStyle = '#d6bcf1'; ctx.font = '10px -apple-system, sans-serif'; ctx.textAlign = 'center';
@@ -504,11 +511,11 @@ export class ModelNetwork {
       const glow = ctx.createRadialGradient(x, y, 4, x, y, 92 * s); glow.addColorStop(0, '#92deb81b'); glow.addColorStop(1, '#92deb800');
       ctx.fillStyle = glow; ctx.fillRect(x - 100 * s, y - 100 * s, 200 * s, 200 * s);
       ctx.strokeStyle = '#75b49740'; ctx.beginPath(); ctx.ellipse(x, y, 80 * s, 74 * s, -.20, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = '#b1d5bd'; ctx.font = `${compact ? 9 : 10}px ui-monospace,monospace`; ctx.fillText(compact ? (eye ? 'R' : 'L') : (eye ? 'RIGHT NETWORK' : 'LEFT NETWORK'), x, y - 82 * s);
-      ctx.imageSmoothingEnabled = false; const imageSize = 54 * s;
+      ctx.fillStyle = '#b1d5bd'; ctx.font = `${compact ? 9 : 10}px ui-monospace,monospace`; if(!compact)ctx.fillText(eye ? 'RIGHT NETWORK' : 'LEFT NETWORK', x, y - 82 * s);
+      ctx.imageSmoothingEnabled = false; const imageSize = Math.min(width*.10,height*.26,100);
       if (this.data) ctx.drawImage(this.eyeCanvas[eye], .06 * width - imageSize / 2, y - imageSize / 2, imageSize, imageSize);
       ctx.strokeStyle = '#9fc8ad70'; ctx.strokeRect(.06 * width - imageSize / 2 - 3, y - imageSize / 2 - 3, imageSize + 6, imageSize + 6);
-      ctx.fillStyle = '#a1bcaa'; ctx.fillText(compact ? (eye ? 'R' : 'L') : (eye ? 'RIGHT EYE' : 'LEFT EYE'), .06 * width, y + imageSize / 2 + (compact ? 12 : 20));
+      ctx.fillStyle = '#a1bcaa'; ctx.fillText(eye ? 'R' : 'L', .06 * width + imageSize / 2 + 12, y + 16);
       // These arrows describe the preprocessing flow, not inferred synapses.
       ctx.strokeStyle = '#96d5ad50'; ctx.setLineDash([3, 6]); ctx.beginPath(); ctx.moveTo(.06 * width + imageSize / 2 + 8, y); ctx.lineTo(x - 86 * s, y); ctx.stroke(); ctx.setLineDash([]);
     }
@@ -518,7 +525,7 @@ export class ModelNetwork {
       const focused = (this.focus === 'all' || this.focus === node.stage) && (this.cellType < 0 || node.stage !== 'vision' || node.type === this.cellType);
       ctx.globalAlpha = focused ? (this.hasActivity ? this.data.pixels[this.pixelOffset(i)+3]/255 : node.stage === 'vision' ? .30 : .6) : .13;
       ctx.fillStyle = this.hasActivity ? this.colorAt(i) : COLORS[128];
-      const size = node.stage === 'actions' ? (compact ? 6 : 8) : node.stage === 'vision' ? Math.max(overview ? .9 : 0, (1 + Math.abs(norm) * .8) * s) : Math.max(overview ? 1.2 : 0, (2.3 + Math.abs(norm) * 1.3) * s);
+      const size = node.stage === 'actions' ? (compact ? 7 : 10) : node.stage === 'vision' ? Math.max(overview ? .9 : 0, (1 + Math.abs(norm) * .8) * s) : Math.max(['readout','latent','memory','control'].includes(node.stage)?4.5:overview?1.5:0,(3.3+Math.abs(norm)*1.5)*s);
       if (node.stage !== 'vision') {
         ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI * 2); ctx.fill();
         if (node.stage !== 'actions') { ctx.strokeStyle = '#9bbfb43d'; ctx.lineWidth = .55; ctx.stroke(); }

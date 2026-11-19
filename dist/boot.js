@@ -15,7 +15,7 @@
   function reload(){if(!started)location.reload();}
   retry.addEventListener('click',reload);
   var timer=setTimeout(function(){failed('连接时间较长，请检查网络后重新加载页面。');},30000);
-  import('./app.js?v=loading-20261118c').then(function(){
+  import('./app.js?v=network-fill-20261119').then(function(){
     started=true;clearTimeout(timer);retry.removeEventListener('click',reload);
     document.getElementById('startup-retry').hidden=true;
   }).catch(function(error){

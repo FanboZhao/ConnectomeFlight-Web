@@ -1,5 +1,5 @@
 import { fetchResource, abortable } from './resource.js?v=loading-20261118b';
-import { ModelNetwork } from './model-network.js?v=loading-20261118b';
+import { ModelNetwork } from './model-network.js?v=network-fill-20261119';
 import { OdorFieldLayer } from './odor-field.js?v=loading-20261118b';
 const byId = id => document.getElementById(id);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
